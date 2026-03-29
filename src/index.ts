@@ -13,6 +13,7 @@ import { CDNService } from './services/cdn';
 import { KubernetesService } from './services/kubernetes';
 import { PricingService } from './services/pricing';
 import { DDoSService } from './services/ddos';
+import { AIGatewayService } from './services/ai_gateway';
 
 export class CubePath {
   public readonly projects: ProjectsService;
@@ -28,6 +29,7 @@ export class CubePath {
   public readonly kubernetes: KubernetesService;
   public readonly pricing: PricingService;
   public readonly ddos: DDoSService;
+  public readonly aiGateway: AIGatewayService;
 
   constructor(options: ClientOptions) {
     const http = new HttpClient(options);
@@ -45,6 +47,7 @@ export class CubePath {
     this.kubernetes = new KubernetesService(http);
     this.pricing = new PricingService(http);
     this.ddos = new DDoSService(http);
+    this.aiGateway = new AIGatewayService(http, options);
   }
 }
 

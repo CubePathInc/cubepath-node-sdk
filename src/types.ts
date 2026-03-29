@@ -3,6 +3,7 @@
 export interface ClientOptions {
   apiKey: string;
   baseURL?: string;
+  aiGatewayBaseURL?: string;
   userAgent?: string;
   maxRetries?: number;
   retryWaitMin?: number;
@@ -956,4 +957,127 @@ export interface DDoSAttack {
   bytes_second_peak: number;
   status: string;
   description: string;
+}
+
+// ── AI Gateway ─────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  role: string;
+  content: unknown;
+  name?: string;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+}
+
+export interface ToolCall {
+  id: string;
+  type: string;
+  function: FunctionCall;
+}
+
+export interface FunctionCall {
+  name: string;
+  arguments: string;
+}
+
+export interface Tool {
+  type: string;
+  function: ToolFunction;
+}
+
+export interface ToolFunction {
+  name: string;
+  description?: string;
+  parameters?: unknown;
+}
+
+export interface ChatCompletionRequest {
+  /** Model in "provider/model_id" format, e.g. "openai/gpt-4o". */
+  model: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  top_p?: number;
+  n?: number;
+  stream?: boolean;
+  stop?: string | string[];
+  max_tokens?: number;
+  presence_penalty?: number;
+  frequency_penalty?: number;
+  user?: string;
+  tools?: Tool[];
+  tool_choice?: unknown;
+  response_format?: Record<string, unknown>;
+}
+
+export interface CompletionUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface ChatCompletionChoice {
+  index: number;
+  message: ChatMessage;
+  finish_reason: string | null;
+}
+
+export interface ChatCompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: ChatCompletionChoice[];
+  usage?: CompletionUsage;
+}
+
+export interface DeltaContent {
+  role?: string;
+  content?: string;
+  tool_calls?: ToolCall[];
+}
+
+export interface ChatCompletionDelta {
+  index: number;
+  delta: DeltaContent;
+  finish_reason: string | null;
+}
+
+export interface ChatCompletionChunk {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: ChatCompletionDelta[];
+  usage?: CompletionUsage;
+}
+
+export interface ModelPricing {
+  input_per_million_tokens: string;
+  output_per_million_tokens: string;
+  currency: string;
+}
+
+export interface ModelCapabilities {
+  streaming: boolean;
+  vision: boolean;
+  tools: boolean;
+}
+
+export interface ModelLimits {
+  max_context_tokens: number;
+  max_output_tokens: number;
+}
+
+export interface ModelInfo {
+  id: string;
+  object: string;
+  owned_by: string;
+  pricing: ModelPricing;
+  capabilities: ModelCapabilities;
+  limits: ModelLimits;
+}
+
+export interface ModelListResponse {
+  object: string;
+  data: ModelInfo[];
 }
