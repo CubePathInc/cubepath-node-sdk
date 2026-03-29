@@ -11,6 +11,7 @@ import {
   CreateVPSBackupRequest,
   UpdateVPSBackupSettingsRequest,
   ISOListResponse,
+  VPSTemplatesResponse,
 } from '../types';
 
 export class VPSBackupsService {
@@ -105,5 +106,9 @@ export class VPSService {
 
   async power(vpsId: string, action: VPSPowerAction): Promise<void> {
     await this.http.post(`/vps/${vpsId}/power/${action}`);
+  }
+
+  async templates(): Promise<VPSTemplatesResponse> {
+    return this.http.get<VPSTemplatesResponse>('/vps/templates');
   }
 }

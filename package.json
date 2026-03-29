@@ -1,6 +1,6 @@
 {
   "name": "@cubepath/sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Official CubePath Node.js SDK for the CubePath Cloud API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

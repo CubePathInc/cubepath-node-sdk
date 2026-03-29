@@ -95,6 +95,21 @@ export interface VPSTemplate {
   version: string;
 }
 
+export interface VPSAppTemplate {
+  app_name: string;
+  version: string;
+  recommended_plan: string;
+  app_docs: string;
+  app_wiki: string;
+  license_type: string;
+  description: string;
+}
+
+export interface VPSTemplatesResponse {
+  operating_systems: VPSTemplate[];
+  applications: VPSAppTemplate[];
+}
+
 export interface Location {
   id: string;
   location_name: string;
