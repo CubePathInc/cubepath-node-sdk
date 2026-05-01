@@ -129,7 +129,7 @@ export interface CreateVPSRequest {
   location_name: string;
   label?: string;
   network_id?: string;
-  ssh_key_names?: string[];
+  ssh_key_ids?: number[];
   user?: string;
   password?: string;
   ipv4?: boolean;
@@ -250,7 +250,7 @@ export interface CreateBaremetalRequest {
   label?: string;
   user?: string;
   password: string;
-  ssh_key_names?: string[];
+  ssh_key_ids?: number[];
   os_name?: string;
   disk_layout_name?: string;
 }
@@ -267,7 +267,7 @@ export interface ReinstallBaremetalRequest {
   user?: string;
   password: string;
   hostname?: string;
-  ssh_key_names?: string[];
+  ssh_key_ids?: number[];
 }
 
 export interface RescueResponse {

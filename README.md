@@ -90,7 +90,7 @@ const task = await client.vps.create('project-id', {
   plan_name: 'gp.small',
   template_name: 'debian-12',
   location_name: 'us-mia-1',
-  ssh_key_names: ['my-key'],
+  ssh_key_ids: [12],
   enable_backups: true,
 });
 
@@ -150,7 +150,7 @@ const task = await client.baremetal.deploy('project-id', {
   location_name: 'us-hou-1',
   hostname: 'db-primary',
   password: 'secure-password',
-  ssh_key_names: ['my-key'],
+  ssh_key_ids: [12],
   os_name: 'debian-12',
 });
 
