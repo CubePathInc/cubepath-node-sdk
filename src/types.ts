@@ -133,6 +133,7 @@ export interface CreateVPSRequest {
   user?: string;
   password?: string;
   ipv4?: boolean;
+  ipv6?: boolean;
   enable_backups?: boolean;
   custom_cloud_init?: string;
   firewall_group_ids?: string[];
