@@ -129,4 +129,25 @@ export class CDNService {
     if (params?.limit) query.limit = String(params.limit);
     return this.http.get<Record<string, unknown>>(`/cdn/zones/${zoneUUID}/metrics/${metricType}`, query);
   }
+
+  // Actions
+
+  /**
+   * Re-trigger automatic SSL issuance for the zone's current custom_domain.
+   * Use after fixing a missing/incorrect CNAME — the PATCH zone flow only
+   * queues a cert task when custom_domain changes, so this is the way to
+   * retry without resetting the field.
+   */
+  async requestSsl(zoneUUID: string): Promise<{ detail: string }> {
+    return this.http.post<{ detail: string }>(`/cdn/zones/${zoneUUID}/request-ssl`, {});
+  }
+
+  /**
+   * Reassign a CDN zone to a different project in the same organization.
+   */
+  async moveZoneToProject(zoneUUID: string, projectId: number): Promise<{ detail: string }> {
+    return this.http.post<{ detail: string }>(`/cdn/zones/${zoneUUID}/move-project`, {
+      project_id: projectId,
+    });
+  }
 }
