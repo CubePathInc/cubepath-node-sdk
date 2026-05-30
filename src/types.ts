@@ -335,6 +335,24 @@ export interface UpdateNetworkRequest {
   label?: string;
 }
 
+export interface NetworkRoute {
+  id: string;
+  network_id: number;
+  destination: string;
+  next_hop_type: 'ip' | 'vps' | 'baremetal';
+  next_hop_target: string;
+  resolved_next_hop_ip?: string;
+  description?: string;
+  created_at: string;
+}
+
+export interface CreateNetworkRouteRequest {
+  destination: string;
+  next_hop_type: 'ip' | 'vps' | 'baremetal';
+  next_hop_target: string;
+  description?: string;
+}
+
 // ── Floating IPs ────────────────────────────────────────────────────────────
 
 export interface FloatingIP {
@@ -561,6 +579,7 @@ export interface CreateLoadBalancerRequest {
   location_name: string;
   project_id?: string;
   label?: string;
+  network_id?: number;
 }
 
 export interface UpdateLoadBalancerRequest {
@@ -866,6 +885,8 @@ export interface CreateKubernetesClusterRequest {
   ha_control_plane: boolean;
   node_pools: CreateNodePoolConfig[];
   network?: ClusterNetworkConfig;
+  allocate_ipv4?: boolean;
+  allocate_ipv6?: boolean;
 }
 
 export interface CreateNodePoolConfig {
@@ -1096,4 +1117,59 @@ export interface ModelInfo {
 export interface ModelListResponse {
   object: string;
   data: ModelInfo[];
+}
+
+// ── NAT Gateway ─────────────────────────────────────────────────────────────
+
+export interface NATGatewayPlan {
+  name: string;
+  description?: string;
+  price_per_hour: number;
+  bandwidth_mbps: number;
+  connections_per_second: number;
+}
+
+export interface NATGatewayLocationPlans {
+  location_name: string;
+  location_description: string;
+  plans: NATGatewayPlan[];
+}
+
+export interface NATGatewayFloatingIP {
+  address: string;
+  netmask?: string;
+  type: string;
+  rdns?: string;
+}
+
+export interface NATGateway {
+  uuid: string;
+  name: string;
+  label?: string;
+  status: string;
+  plan_name: string;
+  location_name: string;
+  project_id: number;
+  project_name?: string;
+  network_id: number;
+  network_name?: string;
+  network_cidr?: string;
+  private_ip?: string;
+  monthly_charges?: number;
+  floating_ips?: NATGatewayFloatingIP[];
+  protected: boolean;
+  created_at: string;
+}
+
+export interface CreateNATGatewayRequest {
+  name: string;
+  label?: string;
+  plan_name: string;
+  network_id: number;
+  project_id?: number;
+}
+
+export interface UpdateNATGatewayRequest {
+  name?: string;
+  label?: string;
 }

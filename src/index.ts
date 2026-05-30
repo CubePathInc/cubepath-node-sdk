@@ -14,6 +14,7 @@ import { KubernetesService } from './services/kubernetes';
 import { PricingService } from './services/pricing';
 import { DDoSService } from './services/ddos';
 import { AIGatewayService } from './services/ai_gateway';
+import { NATGatewayService } from './services/nat_gateway';
 
 export class CubePath {
   public readonly projects: ProjectsService;
@@ -30,6 +31,7 @@ export class CubePath {
   public readonly pricing: PricingService;
   public readonly ddos: DDoSService;
   public readonly aiGateway: AIGatewayService;
+  public readonly natGateway: NATGatewayService;
 
   constructor(options: ClientOptions) {
     const http = new HttpClient(options);
@@ -48,6 +50,7 @@ export class CubePath {
     this.pricing = new PricingService(http);
     this.ddos = new DDoSService(http);
     this.aiGateway = new AIGatewayService(http, options);
+    this.natGateway = new NATGatewayService(http);
   }
 }
 

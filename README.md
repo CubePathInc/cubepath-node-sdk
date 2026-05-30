@@ -401,6 +401,43 @@ await client.kubernetes.addons.install('cluster-uuid', 'cert-manager');
 const installed = await client.kubernetes.addons.listInstalled('cluster-uuid');
 ```
 
+### NAT Gateway
+
+```typescript
+// List available plans
+const plans = await client.natGateway.listPlans();
+
+// Create a NAT gateway
+const gw = await client.natGateway.create({
+  name: 'my-nat-gw',
+  plan_name: 'nat.small',
+  network_id: 42,
+  project_id: 7,
+});
+
+// Get a NAT gateway
+const gw = await client.natGateway.get('gw-uuid');
+
+// Update name/label
+await client.natGateway.update('gw-uuid', { label: 'production' });
+
+// Resize to a different plan
+await client.natGateway.resize('gw-uuid', 'nat.medium');
+
+// Move to another project
+await client.natGateway.moveToProject('gw-uuid', 12);
+
+// Enable/disable deletion protection
+await client.natGateway.setProtection('gw-uuid', true);
+
+// Get metrics and bandwidth usage
+const metrics = await client.natGateway.getMetrics('gw-uuid');
+const bandwidth = await client.natGateway.getBandwidthUsage('gw-uuid');
+
+// Delete a NAT gateway
+await client.natGateway.delete('gw-uuid');
+```
+
 ### Pricing
 
 ```typescript
