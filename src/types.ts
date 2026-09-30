@@ -649,6 +649,8 @@ export interface CDNOrigin {
   host_header?: string;
   base_path?: string;
   enabled: boolean;
+  /** Set when the origin serves a CubePath Object Storage bucket. */
+  object_storage_bucket_uuid?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -699,21 +701,27 @@ export interface UpdateCDNZoneRequest {
   certificate_uuid?: string;
 }
 
+/**
+ * Either an external origin (origin_url or address) or a CubePath Object Storage bucket
+ * (object_storage_bucket_uuid). A bucket origin only accepts name, weight, priority and
+ * is_backup next to the bucket uuid: the API sets every connection field itself.
+ */
 export interface CreateCDNOriginRequest {
   name: string;
   origin_url?: string;
   address?: string;
   port?: number;
   protocol?: string;
-  weight: number;
-  priority: number;
-  is_backup: boolean;
-  health_check_enabled: boolean;
+  weight?: number;
+  priority?: number;
+  is_backup?: boolean;
+  health_check_enabled?: boolean;
   health_check_path?: string;
-  verify_ssl: boolean;
+  verify_ssl?: boolean;
   host_header?: string;
   base_path?: string;
-  enabled: boolean;
+  enabled?: boolean;
+  object_storage_bucket_uuid?: string;
 }
 
 export interface UpdateCDNOriginRequest {
@@ -1172,4 +1180,224 @@ export interface CreateNATGatewayRequest {
 export interface UpdateNATGatewayRequest {
   name?: string;
   label?: string;
+}
+
+// ── Object Storage ──────────────────────────────────────────────────────────
+
+export interface ObjectStorageTierSummary {
+  uuid: string;
+  slug: string;
+  name: string;
+  media: string;
+}
+
+export interface ObjectStorageTier extends ObjectStorageTierSummary {
+  location_id: number;
+  location_name: string;
+  location_description?: string;
+  region: string;
+  endpoint: string;
+  prices: {
+    storage_gb_month: number;
+    egress_gb: number;
+    class_a_per_1k: number;
+    class_b_per_1k: number;
+  };
+  free_tier: {
+    storage_gb_month: number;
+    egress_gb: number;
+    requests: number;
+  };
+  accepting_new: boolean;
+}
+
+export interface ObjectStorageBucket {
+  uuid: string;
+  name: string;
+  /** pending, active, suspended, blocked, error or deleting */
+  status: string;
+  suspend_reason?: string | null;
+  write_blocked: boolean;
+  error_message?: string | null;
+  project_id: number | null;
+  tier: ObjectStorageTierSummary;
+  location_name: string;
+  region: string;
+  endpoint: string;
+  /** off, enabled or suspended */
+  versioning: string;
+  protected: boolean;
+  size_bytes: number;
+  objects_count: number;
+  usage_updated_at: string | null;
+  monthly_charges: number;
+  cdn_connected: boolean;
+}
+
+export interface ObjectStorageBucketUsage {
+  period: string;
+  since: string;
+  until: string;
+  storage_gib_hours: number;
+  storage_gib_month: number;
+  egress_bytes: number;
+  cdn_bytes: number;
+  class_a_requests: number;
+  class_b_requests: number;
+  class_b_cdn_requests: number;
+}
+
+export interface ObjectStorageBucketCDN {
+  /** connecting, connected, disconnecting, error or disconnected */
+  status: string;
+  zone_uuid: string;
+  zone_name: string;
+  domain: string;
+  custom_domain: string | null;
+  zone_status: string;
+  origin_uuid: string;
+  origin_enabled: boolean;
+}
+
+export interface ObjectStorageBucketDetail extends ObjectStorageBucket {
+  active_at: string | null;
+  last_billed_time: string | null;
+  connection: {
+    endpoint: string;
+    region: string;
+    path_style_url: string;
+    virtual_host_url: string;
+  };
+  /** Null when usage metrics are temporarily unavailable. */
+  usage: ObjectStorageBucketUsage | null;
+  /** Null when no CDN origin serves the bucket. */
+  cdn: ObjectStorageBucketCDN | null;
+}
+
+export interface ListObjectStorageParams {
+  project_id?: number;
+  /** Tier uuid or slug. */
+  tier?: string;
+}
+
+export interface CreateObjectStorageBucketRequest {
+  name: string;
+  /** Tier uuid or slug, for example "infrequent_access". */
+  tier: string;
+  project_id?: number;
+  versioning?: boolean;
+}
+
+export interface CreateObjectStorageBucketResponse {
+  detail: string;
+  uuid: string;
+  name: string;
+  status: string;
+  project_id: number;
+  tier: ObjectStorageTierSummary;
+  region: string;
+  endpoint: string;
+}
+
+export interface UpdateObjectStorageBucketRequest {
+  /** enabled or suspended */
+  versioning?: string;
+  protected?: boolean;
+}
+
+export interface ObjectStorageBucketScope {
+  uuid: string;
+  name: string;
+}
+
+export interface ObjectStorageAccessKey {
+  uuid: string;
+  name: string;
+  access_key_id: string;
+  /** read_write or read_only */
+  permission: string;
+  /** Null means every bucket of the project in the key's tier. */
+  bucket_scope: ObjectStorageBucketScope[] | null;
+  project_id: number | null;
+  tier: ObjectStorageTierSummary;
+  region: string;
+  endpoint: string;
+  /** pending, active, suspended, error or deleting */
+  status: string;
+  expires_at: string | null;
+}
+
+export interface CreateObjectStorageAccessKeyRequest {
+  name: string;
+  /** Tier uuid or slug. */
+  tier: string;
+  /** read_write or read_only */
+  permission: string;
+  project_id?: number;
+  /** Limit the key to these buckets; omit for every bucket of the project in the tier. */
+  bucket_uuids?: string[];
+  /** ISO 8601 date time in the future. */
+  expires_at?: string;
+}
+
+export interface CreateObjectStorageAccessKeyResponse extends ObjectStorageAccessKey {
+  detail: string;
+  /** Returned only once, on creation. */
+  secret_access_key: string;
+}
+
+export interface ObjectStorageFreeTierItem {
+  included: number;
+  used: number | null;
+}
+
+export interface ObjectStorageTierUsage {
+  tier: ObjectStorageTierSummary;
+  storage_gib_hours: number | null;
+  storage_gib_month: number | null;
+  egress_bytes: number | null;
+  cdn_bytes: number | null;
+  class_a_requests: number | null;
+  class_b_requests: number | null;
+  class_b_cdn_requests: number | null;
+  cost: number;
+  projected_cost: number;
+  free_tier: {
+    storage_gb_month: ObjectStorageFreeTierItem;
+    egress_gb: ObjectStorageFreeTierItem;
+    requests: ObjectStorageFreeTierItem;
+  };
+}
+
+export interface ObjectStorageBucketUsageRow {
+  uuid: string;
+  name: string;
+  status: string;
+  project_id: number | null;
+  tier_uuid: string;
+  storage_gib_hours: number | null;
+  storage_gib_month: number | null;
+  egress_bytes: number | null;
+  cdn_bytes: number | null;
+  class_a_requests: number | null;
+  class_b_requests: number | null;
+  class_b_cdn_requests: number | null;
+  cost: number;
+}
+
+export interface ObjectStorageUsage {
+  period: string;
+  since: string;
+  until: string;
+  metrics_available: boolean;
+  total_cost: number;
+  projected_cost: number;
+  tiers: ObjectStorageTierUsage[];
+  buckets: ObjectStorageBucketUsageRow[];
+  available_months: string[];
+}
+
+export interface ObjectStorageUsageParams extends ListObjectStorageParams {
+  /** YYYY-MM, default the current month. */
+  period?: string;
 }

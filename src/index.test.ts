@@ -22,6 +22,7 @@ describe('CubePath', () => {
     expect(client.kubernetes.addons).toBeDefined();
     expect(client.pricing).toBeDefined();
     expect(client.ddos).toBeDefined();
+    expect(client.objectStorage).toBeDefined();
   });
 });
 
