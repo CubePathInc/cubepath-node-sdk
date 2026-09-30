@@ -1,9 +1,13 @@
 import { HttpClient } from '../client';
+import { CubePathError } from '../errors';
 import {
   NATGateway,
   NATGatewayLocationPlans,
   CreateNATGatewayRequest,
   UpdateNATGatewayRequest,
+  MetricsResult,
+  MetricsTimeRange,
+  BandwidthUsage,
 } from '../types';
 
 export class NATGatewayService {
@@ -45,11 +49,27 @@ export class NATGatewayService {
     await this.http.post(`/nat-gateway/${uuid}/protection`, { enabled });
   }
 
-  async getMetrics(uuid: string): Promise<unknown> {
-    return this.http.get<unknown>(`/nat-gateway/${uuid}/metrics`);
+  /**
+   * Traffic of the gateway (series bytes_in and bytes_out, bytes per second) over a window:
+   * H1 (default), H3, H6, H12, H24, D3, D7 or D30. Served through GraphQL; returns
+   * `{ start, end, step, series: [{ name, unit, points: [{ ts, value }] }] }`.
+   */
+  async getMetrics(uuid: string, range: MetricsTimeRange = 'H1'): Promise<MetricsResult> {
+    const data = await this.http.graphql<{ natGateway: { metrics: MetricsResult } | null }>(
+      'query($uuid: ID!, $range: TimeRange!) { natGateway(uuid: $uuid) { metrics(range: $range) { start end step series { name unit points { ts value } } } } }',
+      { uuid, range },
+    );
+    if (!data?.natGateway) throw new CubePathError(404, 'Not Found', `NAT gateway ${uuid} not found`);
+    return data.natGateway.metrics;
   }
 
-  async getBandwidthUsage(uuid: string): Promise<unknown> {
-    return this.http.get<unknown>(`/nat-gateway/${uuid}/bandwidth-usage`);
+  /** Month-to-date traffic of the gateway, served through GraphQL. */
+  async getBandwidthUsage(uuid: string): Promise<BandwidthUsage> {
+    const data = await this.http.graphql<{ natGateway: { bandwidthUsage: BandwidthUsage } | null }>(
+      'query($uuid: ID!) { natGateway(uuid: $uuid) { bandwidthUsage { inBytes outBytes totalBytes periodStart periodEnd } } }',
+      { uuid },
+    );
+    if (!data?.natGateway) throw new CubePathError(404, 'Not Found', `NAT gateway ${uuid} not found`);
+    return data.natGateway.bandwidthUsage;
   }
 }

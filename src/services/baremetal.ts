@@ -1,4 +1,5 @@
 import { HttpClient } from '../client';
+import { CubePathError } from '../errors';
 import {
   Baremetal,
   CreateBaremetalRequest,
@@ -49,8 +50,32 @@ export class BaremetalService {
     await this.http.post(`/baremetal/${baremetalId}/reset-bmc`);
   }
 
+  /** Temperatures and fan speeds from the last BMC poll, served through GraphQL. */
   async bmcSensors(baremetalId: string): Promise<BMCSensors> {
-    return this.http.get<BMCSensors>(`/baremetal/${baremetalId}/bmc-sensors`);
+    type Reading = { name: string; value: number; unit: string };
+    const data = await this.http.graphql<{
+      baremetal: {
+        sensors: {
+          ipmiAvailable: boolean | null;
+          powerOn: boolean | null;
+          lastSeen: number | null;
+          temperatures: Reading[];
+          fans: Reading[];
+        };
+      } | null;
+    }>(
+      'query($id: ID!) { baremetal(id: $id) { sensors { ipmiAvailable powerOn lastSeen temperatures { name value unit } fans { name value unit } } } }',
+      { id: String(baremetalId) },
+    );
+    if (!data?.baremetal) throw new CubePathError(404, 'Not Found', `Baremetal ${baremetalId} not found`);
+    const s = data.baremetal.sensors;
+    return {
+      node: '',
+      ipmi_available: s.ipmiAvailable ?? false,
+      power_on: s.powerOn ?? false,
+      last_seen: s.lastSeen ?? null,
+      sensors: { temperatures: s.temperatures ?? [], fans: s.fans ?? [] },
+    };
   }
 
   async ipmiSession(baremetalId: string): Promise<IPMISession> {
@@ -61,8 +86,18 @@ export class BaremetalService {
     await this.http.post(`/baremetal/${baremetalId}/reinstall`, req);
   }
 
+  /**
+   * Whether an OS reinstallation is running. There is no dedicated endpoint any more: a
+   * server is reinstalling while its status is `deploying`.
+   */
   async reinstallStatus(baremetalId: string): Promise<ReinstallStatus> {
-    return this.http.get<ReinstallStatus>(`/baremetal/${baremetalId}/reinstall/status`);
+    const bm = await this.get(baremetalId);
+    return { is_reinstalling: bm.status === 'deploying', status: bm.status, os_name: '' };
+  }
+
+  /** Cancel a pending or running OS reinstallation. */
+  async cancelReinstall(baremetalId: string): Promise<void> {
+    await this.http.delete(`/baremetal/${baremetalId}/reinstall`);
   }
 
   async enableMonitoring(baremetalId: string): Promise<void> {
