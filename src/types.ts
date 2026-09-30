@@ -278,9 +278,13 @@ export interface RescueResponse {
 }
 
 export interface BMCSensors {
+  /** @deprecated No longer returned by the API; always an empty string. */
   node: string;
+  /** false when the BMC has not been polled recently (see last_seen). */
   ipmi_available: boolean;
   power_on: boolean;
+  /** Unix time of the last BMC poll, null when never polled. */
+  last_seen: number | null;
   sensors: {
     temperatures: SensorReading[];
     fans: SensorReading[];
@@ -289,7 +293,9 @@ export interface BMCSensors {
 
 export interface SensorReading {
   name: string;
-  value: string;
+  value: number;
+  /** CELSIUS for temperatures, RPM for fans. */
+  unit: string;
 }
 
 export interface IPMISession {
@@ -303,6 +309,7 @@ export interface IPMISession {
 export interface ReinstallStatus {
   is_reinstalling: boolean;
   status: string;
+  /** @deprecated No longer available; always an empty string. */
   os_name: string;
 }
 
@@ -398,6 +405,8 @@ export interface FirewallRule {
 }
 
 export interface CreateFirewallGroupRequest {
+  /** Project the group belongs to (required; sent as a query parameter). */
+  project_id: number | string;
   name: string;
   rules: FirewallRule[];
   enabled: boolean;
@@ -414,7 +423,9 @@ export interface VPSFirewallGroupsRequest {
 }
 
 export interface VPSFirewallGroupsResponse {
-  message: string;
+  detail: string;
+  /** @deprecated The API returns `detail`. */
+  message?: string;
   vps_id: string;
   firewall_groups: string[];
   sync_task_created: boolean;
@@ -1400,4 +1411,35 @@ export interface ObjectStorageUsage {
 export interface ObjectStorageUsageParams extends ListObjectStorageParams {
   /** YYYY-MM, default the current month. */
   period?: string;
+}
+
+// ── Metrics (GraphQL) ───────────────────────────────────────────────────────
+
+export type MetricsTimeRange = 'H1' | 'H3' | 'H6' | 'H12' | 'H24' | 'D3' | 'D7' | 'D30';
+
+export interface MetricPoint {
+  /** Unix time. */
+  ts: number;
+  value: number;
+}
+
+export interface MetricSeries {
+  name: string;
+  unit: string;
+  points: MetricPoint[];
+}
+
+export interface MetricsResult {
+  start: number;
+  end: number;
+  step: number;
+  series: MetricSeries[];
+}
+
+export interface BandwidthUsage {
+  inBytes: number;
+  outBytes: number;
+  totalBytes: number;
+  periodStart: number;
+  periodEnd: number;
 }

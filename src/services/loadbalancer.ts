@@ -1,4 +1,5 @@
 import { HttpClient } from '../client';
+import { CubePathError } from '../errors';
 import {
   LoadBalancer,
   LBListener,
@@ -22,8 +23,11 @@ export class LoadBalancerService {
     return this.http.get<LoadBalancer[]>('/loadbalancer/');
   }
 
+  /** The API has no single-item endpoint, so the balancer is looked up in the list. */
   async get(lbUUID: string): Promise<LoadBalancer> {
-    return this.http.get<LoadBalancer>(`/loadbalancer/${lbUUID}`);
+    const lb = (await this.list()).find((l) => l.uuid === lbUUID);
+    if (!lb) throw new CubePathError(404, 'Not Found', `Load balancer ${lbUUID} not found`);
+    return lb;
   }
 
   async create(req: CreateLoadBalancerRequest): Promise<LoadBalancer> {

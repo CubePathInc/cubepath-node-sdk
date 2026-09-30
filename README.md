@@ -161,8 +161,12 @@ await client.baremetal.power('baremetal-id', 'restart_metal');
 const rescue = await client.baremetal.rescue('baremetal-id');
 console.log(rescue.username, rescue.password);
 
-// BMC sensors
+// BMC sensors (temperatures in CELSIUS, fans in RPM; last_seen is the last BMC poll)
 const sensors = await client.baremetal.bmcSensors('baremetal-id');
+
+// Reinstall progress (the server status is 'deploying' while it runs) and cancel
+const status = await client.baremetal.reinstallStatus('baremetal-id');
+await client.baremetal.cancelReinstall('baremetal-id');
 
 // IPMI session
 const session = await client.baremetal.ipmiSession('baremetal-id');
@@ -206,6 +210,7 @@ await client.floatingIPs.release(ip.address);
 ```typescript
 // Create a firewall group
 const group = await client.firewall.create({
+  project_id: 12,
   name: 'web-rules',
   enabled: true,
   rules: [
@@ -214,7 +219,7 @@ const group = await client.firewall.create({
   ],
 });
 
-// Assign to a VPS
+// Replace the groups of a VPS (at most 10, in priority order; [] removes them all)
 await client.firewall.assignToVPS('vps-id', {
   firewall_group_ids: [group.id],
 });
@@ -430,8 +435,8 @@ await client.natGateway.moveToProject('gw-uuid', 12);
 // Enable/disable deletion protection
 await client.natGateway.setProtection('gw-uuid', true);
 
-// Get metrics and bandwidth usage
-const metrics = await client.natGateway.getMetrics('gw-uuid');
+// Traffic metrics (H1 by default: H1, H3, H6, H12, H24, D3, D7, D30) and month-to-date usage
+const metrics = await client.natGateway.getMetrics('gw-uuid', 'H24');
 const bandwidth = await client.natGateway.getBandwidthUsage('gw-uuid');
 
 // Delete a NAT gateway

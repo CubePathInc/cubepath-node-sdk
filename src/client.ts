@@ -7,7 +7,7 @@ const DEFAULT_RETRY_WAIT_MIN = 1000;
 const DEFAULT_RETRY_WAIT_MAX = 30000;
 const DEFAULT_RATE_LIMIT = 10;
 const DEFAULT_TIMEOUT = 30000;
-const SDK_VERSION = '0.5.0';
+const SDK_VERSION = '0.5.1';
 
 export class HttpClient {
   private readonly apiKey: string;
@@ -138,5 +138,24 @@ export class HttpClient {
 
   delete<T>(path: string, body?: unknown): Promise<T> {
     return this.request<T>('DELETE', path, body);
+  }
+
+  /**
+   * Run a query against POST /graphql and return its `data`. Metrics (baremetal, NAT
+   * gateways...) are only served through GraphQL. A GraphQL error is thrown as a
+   * CubePathError; NOT_FOUND maps to 404 so CubePathError.isNotFound keeps working.
+   */
+  async graphql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+    const res = await this.request<{
+      data?: T;
+      errors?: Array<{ message: string; extensions?: { code?: string } }>;
+    }>('POST', '/graphql', { query, variables });
+    if (res?.errors?.length) {
+      const codes = res.errors.map((e) => e.extensions?.code);
+      const status = codes.includes('NOT_FOUND') ? 404 : codes.includes('FORBIDDEN') ? 403 : codes.includes('UNAUTHENTICATED') ? 401 : 400;
+      const detail = res.errors.map((e) => e.message).join('; ');
+      throw new CubePathError(status, 'GraphQL error', detail);
+    }
+    return res?.data as T;
   }
 }
