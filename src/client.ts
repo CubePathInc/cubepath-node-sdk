@@ -7,7 +7,7 @@ const DEFAULT_RETRY_WAIT_MIN = 1000;
 const DEFAULT_RETRY_WAIT_MAX = 30000;
 const DEFAULT_RATE_LIMIT = 10;
 const DEFAULT_TIMEOUT = 30000;
-const SDK_VERSION = '0.5.1';
+const SDK_VERSION = '0.6.0';
 
 export class HttpClient {
   private readonly apiKey: string;
@@ -65,7 +65,9 @@ export class HttpClient {
       'User-Agent': this.userAgent,
       'Accept': 'application/json',
     };
-    if (body !== undefined) {
+    // A FormData body (file uploads) is sent as multipart: fetch sets its Content-Type.
+    const isForm = body instanceof FormData;
+    if (body !== undefined && !isForm) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -77,7 +79,7 @@ export class HttpClient {
         const response = await fetch(url, {
           method,
           headers,
-          body: body !== undefined ? JSON.stringify(body) : undefined,
+          body: isForm ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
           signal: controller.signal,
         });
 
@@ -136,8 +138,21 @@ export class HttpClient {
     return this.request<T>('PATCH', path, body);
   }
 
-  delete<T>(path: string, body?: unknown): Promise<T> {
-    return this.request<T>('DELETE', path, body);
+  delete<T>(path: string, body?: unknown, query?: Record<string, string>): Promise<T> {
+    return this.request<T>('DELETE', path, body, query);
+  }
+
+  /** POST a multipart form with one file field. `content` is the file body. */
+  postFile<T>(
+    path: string,
+    field: string,
+    content: string | Blob,
+    filename: string,
+    query?: Record<string, string>,
+  ): Promise<T> {
+    const form = new FormData();
+    form.append(field, typeof content === 'string' ? new Blob([content], { type: 'text/plain' }) : content, filename);
+    return this.request<T>('POST', path, form, query);
   }
 
   /**

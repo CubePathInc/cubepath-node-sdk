@@ -23,6 +23,17 @@ describe('CubePath', () => {
     expect(client.pricing).toBeDefined();
     expect(client.ddos).toBeDefined();
     expect(client.objectStorage).toBeDefined();
+    expect(client.vps.availabilityGroups).toBeDefined();
+    expect(client.managedDatabases).toBeDefined();
+    expect(client.managedDatabases.databases).toBeDefined();
+    expect(client.managedDatabases.users).toBeDefined();
+    expect(client.ddosMitigation).toBeDefined();
+    expect(client.ddosMitigation.firewall).toBeDefined();
+    expect(client.ddosMitigation.prefixLists).toBeDefined();
+    expect(client.ddosMitigation.traffic).toBeDefined();
+    expect(client.cloudAlerts).toBeDefined();
+    expect(client.cloudAlerts.notificators).toBeDefined();
+    expect(client.transcoder).toBeDefined();
   });
 });
 

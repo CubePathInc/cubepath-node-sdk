@@ -41,7 +41,7 @@ const client = new CubePath({
 |--------|---------|-------------|
 | `apiKey` | *required* | API key for authentication |
 | `baseURL` | `https://api.cubepath.com` | API base URL |
-| `userAgent` | `cubepath-node-sdk/0.1.0` | Custom User-Agent header |
+| `userAgent` | `cubepath-node-sdk/<version>` | Custom User-Agent header |
 | `maxRetries` | `3` | Maximum retry attempts on 429/5xx |
 | `retryWaitMin` | `1000` | Minimum retry wait (ms) |
 | `retryWaitMax` | `30000` | Maximum retry wait (ms) |
@@ -64,6 +64,9 @@ const project = await client.projects.create({
 // List projects
 const projects = await client.projects.list();
 
+// Rename a project
+await client.projects.update(project.id, { name: 'production' });
+
 // Delete a project
 await client.projects.delete(project.id);
 ```
@@ -79,6 +82,9 @@ const key = await client.sshKeys.create({
 
 // List SSH keys
 const keys = await client.sshKeys.list();
+
+// Rename a key
+await client.sshKeys.update(keys[0].id, 'laptop');
 ```
 
 ### VPS
@@ -103,8 +109,39 @@ await client.vps.resize('vps-id', 'gp.pro');
 // Reinstall
 await client.vps.reinstall('vps-id', 'debian-12');
 
+// Plans by location with prices and stock
+const plans = await client.vps.plans();
+
+// Deletion protection and moving to another project
+await client.vps.setProtection('vps-id', true);
+await client.vps.moveToProject('vps-id', 12);
+
+// SSH keys (installed on the next reinstall) and private network
+await client.vps.addSSHKeys('vps-id', [12, 47]);
+await client.vps.removeSSHKey('vps-id', 47);
+await client.vps.attachNetwork('vps-id', 73);
+await client.vps.detachNetwork('vps-id');
+
+// noVNC console session (valid 5 minutes; the ticket is the VNC password)
+const vnc = await client.vps.vncSession('vps-id');
+
 // Destroy
 await client.vps.destroy('vps-id', true); // release floating IPs
+```
+
+#### Availability Groups
+
+```typescript
+// VPS in a group are spread over different hosts
+const group = await client.vps.availabilityGroups.create({
+  project_id: 12,
+  name: 'web',
+  location_name: 'eu-bcn-1',
+});
+await client.vps.availabilityGroups.addVPS(group.uuid, 'vps-id');
+const groups = await client.vps.availabilityGroups.list(12);
+await client.vps.availabilityGroups.removeVPS(group.uuid, 'vps-id');
+await client.vps.availabilityGroups.delete(group.uuid);
 ```
 
 #### VPS Backups
@@ -170,6 +207,17 @@ await client.baremetal.cancelReinstall('baremetal-id');
 
 // IPMI session
 const session = await client.baremetal.ipmiSession('baremetal-id');
+
+// KVM console credentials, models by location, operating systems for a reinstall
+const kvm = await client.baremetal.kvm('baremetal-id');
+const models = await client.baremetal.listModels();
+const osOptions = await client.baremetal.listOS('baremetal-id');
+
+// Protection, project, SSH keys and private network
+await client.baremetal.setProtection('baremetal-id', true);
+await client.baremetal.moveToProject('baremetal-id', 12);
+await client.baremetal.addSSHKeys('baremetal-id', [12]);
+await client.baremetal.attachNetwork('baremetal-id', 73);
 ```
 
 ### Networks
@@ -186,6 +234,19 @@ const network = await client.networks.create({
 
 // Update a network
 await client.networks.update('network-id', { label: 'production' });
+
+// Move it to another project
+await client.networks.moveToProject(73, 12);
+
+// BGP sessions between the network's routers and a server
+const peer = await client.networks.createBGPPeer(73, {
+  peer_type: 'vps',
+  peer_target: 'vps-id',
+  remote_asn: 65001,
+});
+const peers = await client.networks.listBGPPeers(73); // last_state, received_prefixes...
+await client.networks.updateBGPPeer(73, peer.peer_id, { enabled: false });
+await client.networks.deleteBGPPeer(73, peer.peer_id);
 ```
 
 ### Floating IPs
@@ -214,8 +275,8 @@ const group = await client.firewall.create({
   name: 'web-rules',
   enabled: true,
   rules: [
-    { direction: 'inbound', protocol: 'tcp', port: '443', source: '0.0.0.0/0' },
-    { direction: 'inbound', protocol: 'tcp', port: '80', source: '0.0.0.0/0' },
+    { direction: 'in', protocol: 'tcp', port: '443', source: '0.0.0.0/0' },
+    { direction: 'in', protocol: 'tcp', port: '80', source: '0.0.0.0/0' },
   ],
 });
 
@@ -249,6 +310,29 @@ await client.dns.createRecord(zone.uuid, {
 
 // Verify zone delegation
 const verification = await client.dns.verifyZone(zone.uuid);
+
+// Health check on an A/AAAA record (Pro and Business zones): an unhealthy value is
+// left out of the answers until it recovers
+const record = (await client.dns.listRecordsByType(zone.uuid, 'A'))[0];
+await client.dns.setHealthCheck(zone.uuid, record.uuid, {
+  name: 'web',
+  check_type: 'https',
+  path: '/health',
+});
+const checks = await client.dns.listHealthChecks(zone.uuid);
+await client.dns.deleteHealthCheck(zone.uuid, record.uuid);
+
+// SOA settings
+await client.dns.updateSOA(zone.uuid, { refresh: 7200 });
+
+// Import a BIND zone file into a zone, or create a zone from one or from public DNS
+await client.dns.importZoneFile(zone.uuid, fs.readFileSync('example.com.zone', 'utf8'));
+await client.dns.createZoneFromFile('example.org', 12, fs.readFileSync('example.org.zone', 'utf8'));
+await client.dns.createZoneFromScan('example.net', 12);
+
+// GeoDNS regions, move to another project
+const regions = await client.dns.listRegions();
+await client.dns.moveZoneToProject(zone.uuid, 12);
 ```
 
 ### Load Balancer
@@ -288,6 +372,16 @@ await client.loadBalancer.configureHealthCheck(lb.uuid, listener.uuid, {
   unhealthy_threshold: 3,
 });
 
+// Add several targets at once
+await client.loadBalancer.addTargets(lb.uuid, listener.uuid, [
+  { target_type: 'vps', target_uuid: 'vps-id-1', port: 443 },
+  { target_type: 'vps', target_uuid: 'vps-id-2', port: 443 },
+]);
+
+// Protection and project
+await client.loadBalancer.setProtection(lb.uuid, true);
+await client.loadBalancer.moveToProject(lb.uuid, 12);
+
 // List available plans
 const plans = await client.loadBalancer.listPlans();
 ```
@@ -325,10 +419,20 @@ await client.cdn.createRule(zone.uuid, {
   enabled: true,
 });
 
-// Get metrics
+// Get metrics (optional filters: country, asn, status, status_range, cache_status...)
 const metrics = await client.cdn.getMetrics(zone.uuid, 'bandwidth', {
   minutes: 60,
+  status_range: '5xx',
 });
+
+// Purge the cache everywhere, or some paths ("/img/*" purges a prefix)
+await client.cdn.purgeCache(zone.uuid, { paths: ['/index.html', '/img/*'] });
+const purges = await client.cdn.listPurges(zone.uuid);
+
+// Token auth: enable it (the secret is returned once), then sign URLs
+const { token_auth_secret } = await client.cdn.updateZone(zone.uuid, { token_auth_enabled: true });
+const signed = await client.cdn.signURL(zone.uuid, { path: '/videos/clip.mp4', expires_in: 3600 });
+await client.cdn.rotateTokenSecret(zone.uuid);
 ```
 
 #### CDN WAF
@@ -368,6 +472,13 @@ const kubeconfig = await client.kubernetes.getKubeconfig(cluster.uuid!);
 // List versions and plans
 const versions = await client.kubernetes.listVersions();
 const plans = await client.kubernetes.listPlans();
+
+// Health metrics of the cluster and of one node (1h, 3h, 6h, 12h, 24h, 3d, 7d, 30d)
+const metrics = await client.kubernetes.getMetrics(cluster.uuid!, '24h');
+const nodeMetrics = await client.kubernetes.getNodeMetrics(cluster.uuid!, 'worker-1');
+
+// Deletion protection
+await client.kubernetes.setProtection(cluster.uuid!, true);
 ```
 
 #### Node Pools
@@ -493,6 +604,151 @@ await client.cdn.createOrigin(zone.uuid, {
 });
 ```
 
+### Managed Databases
+
+MySQL, PostgreSQL and Valkey. Databases are provisioned asynchronously: poll `get` until
+`status` is `active`. Prices are per node (replica) per hour.
+
+```typescript
+// Plans by location, optionally for one engine
+const plans = await client.managedDatabases.listPlans('postgresql');
+
+const db = await client.managedDatabases.create({
+  project_id: 12,
+  name: 'app-db',
+  engine: 'postgresql',
+  version: '17.5.0',
+  plan_uuid: plans[0].plans[0].uuid,
+  replicas: 2,
+});
+
+const detail = await client.managedDatabases.get(db.uuid);
+const creds = await client.managedDatabases.getCredentials(db.uuid); // host, port, username, password, uri
+
+// Logical databases (not for Valkey) and users: the user password is only returned here
+await client.managedDatabases.databases.create(db.uuid, 'appdb');
+const user = await client.managedDatabases.users.create(db.uuid, { username: 'app' });
+
+// Tunable parameters
+const config = await client.managedDatabases.getConfig(db.uuid);
+await client.managedDatabases.updateConfig(db.uuid, { statement_timeout: 30000 });
+
+// Scale, rotate the admin password, metrics
+await client.managedDatabases.scale(db.uuid, { replicas: 3 });
+await client.managedDatabases.rotateCredentials(db.uuid);
+const metrics = await client.managedDatabases.getMetrics(db.uuid, { time_range: '24h' });
+
+// Protection, label and backup policy, delete
+await client.managedDatabases.setProtection(db.uuid, true);
+await client.managedDatabases.update(db.uuid, { label: 'production' });
+await client.managedDatabases.setProtection(db.uuid, false);
+await client.managedDatabases.delete(db.uuid);
+```
+
+### DDoS Mitigation
+
+Settings of your IPs with Premium DDoS protection. `network` is an IP or a subnet in CIDR form.
+
+```typescript
+const ips = await client.ddosMitigation.listIPs();
+
+// Protection profile (levels 0-10, rate limits, geo / ASN / prefix list filtering)
+const profile = await client.ddosMitigation.getProfile('203.0.113.10');
+await client.ddosMitigation.updateProfile('203.0.113.10', { udp_validation_level: 2, country_mode: 1 });
+await client.ddosMitigation.setProfileCountries('203.0.113.10', ['CN', 'RU']);
+await client.ddosMitigation.setProfileASNs('203.0.113.10', [64496]);
+const countries = await client.ddosMitigation.listCountries();
+
+// Firewall rules (action 50 = TLS validation, protocol 6 = TCP)
+await client.ddosMitigation.firewall.create({ network: '203.0.113.10', protocol: 6, dst_port: 443, action: 50 });
+const rules = await client.ddosMitigation.firewall.list('203.0.113.10');
+await client.ddosMitigation.firewall.delete(rules[0].id);
+
+// Prefix lists
+await client.ddosMitigation.prefixLists.create({ name: 'office' });
+const list = (await client.ddosMitigation.prefixLists.list()).find((l) => l.name === 'office')!;
+await client.ddosMitigation.prefixLists.addEntry(list.uuid, '198.51.100.0/24');
+await client.ddosMitigation.setProfilePrefixLists('203.0.113.10', [list.uuid]);
+
+// Traffic seen by the scrubbers
+const stats = await client.ddosMitigation.traffic.stats({
+  start_time: '2026-09-30T00:00:00Z',
+  end_time: '2026-09-30T01:00:00Z',
+  interval: '5m',
+});
+const packets = await client.ddosMitigation.traffic.capture({
+  start_time: '2026-09-30T00:00:00Z',
+  end_time: '2026-09-30T01:00:00Z',
+  destination_ip: '203.0.113.10',
+  include_actions: ['DROP'],
+  limit: 1000,
+});
+```
+
+### Cloud Alerts
+
+```typescript
+// A channel: email goes to your address, Slack and Discord take a webhook URL
+const channel = await client.cloudAlerts.notificators.create({ name: 'ops', type: 'email' });
+
+const alert = await client.cloudAlerts.create({
+  project_id: 12,
+  name: 'high cpu',
+  target_type: 'vps',
+  target_id: 'vps-id',
+  metric_type: 'cpu',
+  operator: 'gt',
+  threshold: 90,
+  duration_seconds: 300,
+  actions: [{ action_type: 'notify', notificator_id: channel.id }],
+});
+
+// Pause it, read its history, delete it
+await client.cloudAlerts.update(alert.id, { status: 'disabled' });
+const events = await client.cloudAlerts.history(alert.id);
+await client.cloudAlerts.delete(alert.id);
+await client.cloudAlerts.notificators.delete(channel.id);
+```
+
+### Video Transcoder
+
+Input from a URL or any S3 compatible bucket; output to your bucket (for example a CubePath
+Object Storage bucket and key).
+
+```typescript
+const job = await client.transcoder.createJob({
+  input: { source: 'url', url: 'https://example.com/video.mp4' },
+  output: {
+    s3: {
+      endpoint: 'https://eu.cubestorage.io',
+      region: 'eu',
+      bucket: 'my-videos',
+      path: 'out/',
+      access_key: key.access_key_id,
+      secret_key: key.secret_access_key,
+    },
+  },
+  outputs: [
+    { type: 'file', codec: 'h264', height: 720, container: 'mp4' },
+    { type: 'thumbnails' },
+  ],
+  idempotency_key: 'video-42',
+});
+
+// Poll until completed, failed or canceled
+const current = await client.transcoder.getJob(job.uuid);
+const files = await client.transcoder.getJobOutputs(job.uuid);
+
+// Many inputs at once, list, cancel
+const batch = await client.transcoder.createBatch({
+  output: { s3: { bucket: 'my-videos', path: 'hls/' } },
+  outputs: [{ type: 'hls' }],
+  inputs: [{ url: 'https://example.com/a.mp4', out_subpath: 'a/' }],
+});
+const page = await client.transcoder.listJobs({ batch_id: batch.batch_id, limit: 100 });
+await client.transcoder.cancelJob(job.uuid);
+```
+
 ### Pricing
 
 ```typescript
@@ -512,11 +768,15 @@ for (const location of pricing.vps.locations) {
 ### DDoS
 
 ```typescript
-// List DDoS attacks
+// List DDoS attacks (empty when there are none)
 const attacks = await client.ddos.listAttacks();
 for (const attack of attacks) {
   console.log(`${attack.ip_address}: ${attack.status} (${attack.duration}s)`);
 }
+
+// Details and traffic graph of one attack
+const details = await client.ddos.getAttackDetails(attacks[0].attack_id);
+const graph = await client.ddos.getAttackTrafficGraph(attacks[0].attack_id);
 ```
 
 ## Error Handling

@@ -1,5 +1,5 @@
 import { HttpClient } from '../client';
-import { Project, ProjectResponse, CreateProjectRequest } from '../types';
+import { Project, ProjectResponse, CreateProjectRequest, UpdateProjectRequest, DetailResponse } from '../types';
 
 export class ProjectsService {
   constructor(private readonly http: HttpClient) {}
@@ -19,6 +19,10 @@ export class ProjectsService {
       throw new Error(`Project ${projectId} not found`);
     }
     return project;
+  }
+
+  async update(projectId: string | number, req: UpdateProjectRequest): Promise<DetailResponse> {
+    return this.http.put<DetailResponse>(`/projects/${projectId}`, req);
   }
 
   async delete(projectId: string): Promise<void> {
