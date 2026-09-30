@@ -15,6 +15,7 @@ import { PricingService } from './services/pricing';
 import { DDoSService } from './services/ddos';
 import { AIGatewayService } from './services/ai_gateway';
 import { NATGatewayService } from './services/nat_gateway';
+import { ObjectStorageService } from './services/object_storage';
 
 export class CubePath {
   public readonly projects: ProjectsService;
@@ -32,6 +33,7 @@ export class CubePath {
   public readonly ddos: DDoSService;
   public readonly aiGateway: AIGatewayService;
   public readonly natGateway: NATGatewayService;
+  public readonly objectStorage: ObjectStorageService;
 
   constructor(options: ClientOptions) {
     const http = new HttpClient(options);
@@ -51,6 +53,7 @@ export class CubePath {
     this.ddos = new DDoSService(http);
     this.aiGateway = new AIGatewayService(http, options);
     this.natGateway = new NATGatewayService(http);
+    this.objectStorage = new ObjectStorageService(http);
   }
 }
 

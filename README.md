@@ -438,6 +438,56 @@ const bandwidth = await client.natGateway.getBandwidthUsage('gw-uuid');
 await client.natGateway.delete('gw-uuid');
 ```
 
+### Object Storage
+
+S3 compatible buckets. Buckets and keys are created asynchronously: poll until `status` is
+`active`. Use any S3 client (AWS SDK, rclone, aws cli) with the key against the tier `endpoint`.
+
+```typescript
+// List tiers with endpoint, prices and free tier
+const tiers = await client.objectStorage.listTiers();
+
+// Create a bucket
+const bucket = await client.objectStorage.createBucket({
+  name: 'my-backups',
+  tier: 'infrequent_access',
+  project_id: 12,
+});
+
+// Get a bucket (connection info, month usage, CDN origin)
+const detail = await client.objectStorage.getBucket(bucket.uuid);
+
+// Versioning or deletion protection
+await client.objectStorage.updateBucket(bucket.uuid, { versioning: 'enabled', protected: true });
+
+// Create an access key: the secret is only returned here
+const key = await client.objectStorage.createKey({
+  name: 'backups',
+  tier: 'infrequent_access',
+  permission: 'read_write',
+  bucket_uuids: [bucket.uuid], // omit for every bucket of the project
+});
+console.log(key.access_key_id, key.secret_access_key, key.endpoint, key.region);
+
+// List buckets and keys, month usage and cost
+const buckets = await client.objectStorage.listBuckets({ project_id: 12 });
+const keys = await client.objectStorage.listKeys();
+const usage = await client.objectStorage.getUsage({ period: '2026-09' });
+
+// Delete a key, and a bucket (force purges its content first)
+await client.objectStorage.deleteKey(key.uuid);
+await client.objectStorage.deleteBucket(bucket.uuid, { force: true });
+```
+
+Buckets are private. To serve one publicly, add it as an origin of a CDN zone:
+
+```typescript
+await client.cdn.createOrigin(zone.uuid, {
+  name: 'my-bucket',
+  object_storage_bucket_uuid: bucket.uuid,
+});
+```
+
 ### Pricing
 
 ```typescript
