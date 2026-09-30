@@ -12,6 +12,9 @@ import {
   UpdateListenerRequest,
   AddTargetRequest,
   UpdateTargetRequest,
+  BatchTargetRequest,
+  AddTargetsResponse,
+  DetailResponse,
 } from '../types';
 
 export class LoadBalancerService {
@@ -46,6 +49,14 @@ export class LoadBalancerService {
     await this.http.post(`/loadbalancer/${lbUUID}/resize`, { plan_name: planName });
   }
 
+  async setProtection(lbUUID: string, enabled: boolean): Promise<DetailResponse> {
+    return this.http.post<DetailResponse>(`/loadbalancer/${lbUUID}/protection`, { enabled });
+  }
+
+  async moveToProject(lbUUID: string, projectId: number): Promise<DetailResponse> {
+    return this.http.post<DetailResponse>(`/loadbalancer/${lbUUID}/move-project`, { project_id: projectId });
+  }
+
   async listPlans(): Promise<LBLocationPlans[]> {
     return this.http.get<LBLocationPlans[]>('/loadbalancer/plans');
   }
@@ -68,6 +79,13 @@ export class LoadBalancerService {
 
   async addTarget(lbUUID: string, listenerUUID: string, req: AddTargetRequest): Promise<LBTarget> {
     return this.http.post<LBTarget>(`/loadbalancer/${lbUUID}/listeners/${listenerUUID}/targets`, req);
+  }
+
+  /** Add several targets to a listener in one call. */
+  async addTargets(lbUUID: string, listenerUUID: string, targets: BatchTargetRequest[]): Promise<AddTargetsResponse> {
+    return this.http.post<AddTargetsResponse>(`/loadbalancer/${lbUUID}/listeners/${listenerUUID}/targets/batch`, {
+      targets,
+    });
   }
 
   async updateTarget(

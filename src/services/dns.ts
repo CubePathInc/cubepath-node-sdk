@@ -9,6 +9,11 @@ import {
   CreateDNSRecordRequest,
   UpdateDNSRecordRequest,
   UpdateSOARequest,
+  DetailResponse,
+  DNSRegion,
+  DNSHealthCheck,
+  UpsertDNSHealthCheckRequest,
+  DNSImportResult,
 } from '../types';
 
 export class DNSService {
@@ -40,6 +45,38 @@ export class DNSService {
     return this.http.post<ZoneVerifyResponse>(`/dns/zones/${zoneUUID}/verify`);
   }
 
+  async moveZoneToProject(zoneUUID: string, projectId: number): Promise<DetailResponse> {
+    return this.http.post<DetailResponse>(`/dns/zones/${zoneUUID}/move-project`, { project_id: projectId });
+  }
+
+  /** GeoDNS regions a record can be answered in. */
+  async listRegions(): Promise<DNSRegion[]> {
+    return this.http.get<DNSRegion[]>('/dns/regions');
+  }
+
+  /** Create a zone and import the records found by querying public DNS for the domain. */
+  async createZoneFromScan(domain: string, projectId: number): Promise<DNSImportResult> {
+    return this.http.post<DNSImportResult>('/dns/zones/scan', undefined, { domain, project_id: String(projectId) });
+  }
+
+  /** Create a zone from a BIND zone file (UTF-8, at most 1 MB). */
+  async createZoneFromFile(
+    domain: string,
+    projectId: number,
+    zoneFile: string | Blob,
+    filename = 'zone.txt',
+  ): Promise<DNSImportResult> {
+    return this.http.postFile<DNSImportResult>('/dns/zones/upload', 'file', zoneFile, filename, {
+      domain,
+      project_id: String(projectId),
+    });
+  }
+
+  /** Import the records of a BIND zone file into an existing zone. NS and SOA are skipped. */
+  async importZoneFile(zoneUUID: string, zoneFile: string | Blob, filename = 'zone.txt'): Promise<DNSImportResult> {
+    return this.http.postFile<DNSImportResult>(`/dns/zones/${zoneUUID}/import`, 'file', zoneFile, filename);
+  }
+
   async scanZone(zoneUUID: string, autoImport = false): Promise<ZoneScanResponse> {
     return this.http.post<ZoneScanResponse>(`/dns/zones/${zoneUUID}/scan`, undefined, {
       auto_import: String(autoImport),
@@ -66,6 +103,29 @@ export class DNSService {
 
   async deleteRecord(zoneUUID: string, recordUUID: string): Promise<void> {
     await this.http.delete(`/dns/zones/${zoneUUID}/records/${recordUUID}`);
+  }
+
+  // Health checks (Pro and Business zones, A and AAAA records)
+
+  async listHealthChecks(zoneUUID: string): Promise<DNSHealthCheck[]> {
+    return this.http.get<DNSHealthCheck[]>(`/dns/zones/${zoneUUID}/health-checks`);
+  }
+
+  async getHealthCheck(zoneUUID: string, recordUUID: string): Promise<DNSHealthCheck> {
+    return this.http.get<DNSHealthCheck>(`/dns/zones/${zoneUUID}/records/${recordUUID}/health-check`);
+  }
+
+  /** Create or replace the health check of a record. An unhealthy value is left out of the answers. */
+  async setHealthCheck(
+    zoneUUID: string,
+    recordUUID: string,
+    req: UpsertDNSHealthCheckRequest,
+  ): Promise<DNSHealthCheck> {
+    return this.http.put<DNSHealthCheck>(`/dns/zones/${zoneUUID}/records/${recordUUID}/health-check`, req);
+  }
+
+  async deleteHealthCheck(zoneUUID: string, recordUUID: string): Promise<void> {
+    await this.http.delete(`/dns/zones/${zoneUUID}/records/${recordUUID}/health-check`);
   }
 
   // SOA operations

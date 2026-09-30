@@ -12,6 +12,10 @@ import {
   ReinstallStatus,
   BaremetalPowerAction,
   ProjectResponse,
+  DetailResponse,
+  BaremetalKVM,
+  BaremetalOSOption,
+  BaremetalModelsResponse,
 } from '../types';
 
 export class BaremetalService {
@@ -106,5 +110,46 @@ export class BaremetalService {
 
   async disableMonitoring(baremetalId: string): Promise<void> {
     await this.http.put(`/baremetal/${baremetalId}/monitoring`, undefined, { enable: 'false' });
+  }
+
+  /** Models available by location, with price and stock. */
+  async listModels(): Promise<BaremetalModelsResponse> {
+    return this.http.get<BaremetalModelsResponse>('/baremetal/models');
+  }
+
+  /** Operating systems and disk layouts the server can be reinstalled with. */
+  async listOS(baremetalId: string): Promise<BaremetalOSOption[]> {
+    return this.http.get<BaremetalOSOption[]>(`/baremetal/os/${baremetalId}`);
+  }
+
+  /** Credentials of the server's KVM console, when it has one. */
+  async kvm(baremetalId: string): Promise<BaremetalKVM> {
+    return this.http.get<BaremetalKVM>(`/baremetal/${baremetalId}/kvm`);
+  }
+
+  async setProtection(baremetalId: string, enabled: boolean): Promise<DetailResponse> {
+    return this.http.post<DetailResponse>(`/baremetal/${baremetalId}/protection`, { enabled });
+  }
+
+  async moveToProject(baremetalId: string, projectId: number): Promise<DetailResponse> {
+    return this.http.post<DetailResponse>(`/baremetal/${baremetalId}/move-project`, { project_id: projectId });
+  }
+
+  /** Associate SSH keys with the server. They are installed on the next reinstall. */
+  async addSSHKeys(baremetalId: string, sshKeyIds: number[]): Promise<DetailResponse> {
+    return this.http.post<DetailResponse>(`/baremetal/${baremetalId}/ssh-keys`, sshKeyIds);
+  }
+
+  async removeSSHKey(baremetalId: string, sshKeyId: number | string): Promise<DetailResponse> {
+    return this.http.delete<DetailResponse>(`/baremetal/${baremetalId}/ssh-keys/${sshKeyId}`);
+  }
+
+  /** Attach the server to a private network of its location. */
+  async attachNetwork(baremetalId: string, networkId: number): Promise<DetailResponse> {
+    return this.http.post<DetailResponse>(`/baremetal/${baremetalId}/network`, { network_id: networkId });
+  }
+
+  async detachNetwork(baremetalId: string): Promise<DetailResponse> {
+    return this.http.delete<DetailResponse>(`/baremetal/${baremetalId}/network`);
   }
 }

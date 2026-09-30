@@ -22,6 +22,8 @@ export interface APIErrorResponse {
 
 export interface Project {
   id: string;
+  /** Returned by create. */
+  project_id?: number;
   name: string;
   description?: string;
   created_at: string;
@@ -42,6 +44,15 @@ export interface CreateProjectRequest {
   description?: string;
 }
 
+export interface UpdateProjectRequest {
+  name?: string;
+}
+
+/** Generic `{ detail }` answer of the API's action endpoints. */
+export interface DetailResponse {
+  detail: string;
+}
+
 // ── SSH Keys ────────────────────────────────────────────────────────────────
 
 export interface SSHKey {
@@ -56,6 +67,17 @@ export interface SSHKey {
 export interface CreateSSHKeyRequest {
   name: string;
   ssh_key: string;
+}
+
+export interface UpdateSSHKeyResponse {
+  detail: string;
+  sshkey: {
+    id: number;
+    name: string;
+    ssh_key: string;
+    fingerprint?: string | null;
+    key_type?: string | null;
+  };
 }
 
 // ── VPS ─────────────────────────────────────────────────────────────────────
@@ -153,16 +175,101 @@ export interface TaskResponse {
 
 export type VPSPowerAction = 'start_vps' | 'stop_vps' | 'restart_vps' | 'reset_vps';
 
+export interface VPSPlanOption {
+  plan_name: string;
+  ram: number;
+  cpu: number;
+  storage: number;
+  bandwidth: number;
+  price_per_hour: number;
+  /** 2 available, 1 out of stock. */
+  status?: number;
+}
+
+export interface VPSPlansResponse {
+  locations: Array<{
+    location_name: string;
+    description: string;
+    clusters: Array<{
+      cluster_name: string;
+      type?: string;
+      plans: VPSPlanOption[];
+    }>;
+  }>;
+}
+
+export interface VNCSession {
+  /** Open it with a noVNC client within 5 minutes. */
+  websocket_url: string;
+  session_id: string;
+  /** Pass `ticket` as the VNC (RFB) password. */
+  vnc_info: { ticket: string };
+}
+
+// ── VPS Availability Groups ─────────────────────────────────────────────────
+
+export interface AvailabilityGroup {
+  uuid: string;
+  project_id: number;
+  name: string;
+  description: string | null;
+  /** Placement strategy; `spread` puts every VPS on a different host. */
+  strategy: string;
+  location_name: string;
+  max_servers: number;
+  vps_count?: number;
+  vps_list?: Array<{ id: number; name: string; label: string; status: string }>;
+  created_at: string;
+}
+
+export interface CreateAvailabilityGroupRequest {
+  project_id: number;
+  name: string;
+  description?: string;
+  location_name: string;
+}
+
+export interface CreateAvailabilityGroupResponse {
+  detail: string;
+  uuid: string;
+  project_id: number;
+  name: string;
+  description: string;
+  strategy: string;
+  location_name: string;
+  max_servers: number;
+  vps_count: number;
+}
+
+export interface AvailabilityGroupMemberResponse {
+  detail: string;
+  vps_id: number;
+  vps_name: string;
+  group_uuid?: string;
+  group_name?: string;
+}
+
 // ── VPS Backups ─────────────────────────────────────────────────────────────
 
 export interface VPSBackup {
   id: string;
+  vps_id?: number;
+  /** manual or automatic */
   backup_type: string;
+  /** pending, in_progress, completed, failed or deleted */
   status: string;
   progress: number;
-  size_gb: number;
-  notes?: string;
+  size_gb: number | null;
+  notes?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  error_message?: string | null;
   created_at: string;
+}
+
+export interface ListVPSBackupsParams {
+  limit?: number;
+  offset?: number;
 }
 
 export interface VPSBackupSettings {
@@ -315,6 +422,55 @@ export interface ReinstallStatus {
 
 export type BaremetalPowerAction = 'start_metal' | 'stop_metal' | 'restart_metal';
 
+export interface BaremetalKVM {
+  url: string;
+  username: string;
+  password?: string | null;
+  updated_at?: string | null;
+}
+
+export interface BaremetalDiskLayout {
+  id: number;
+  name: string;
+  disk_layout_name: string;
+  disk_type?: string | null;
+  raid_type?: string | null;
+  disk_count?: number | null;
+}
+
+export interface BaremetalOSOption {
+  id: number;
+  os_name: string;
+  operating_system?: string | null;
+  disk_layouts: BaremetalDiskLayout[];
+}
+
+export interface BaremetalModelOption {
+  model_name: string;
+  price: number;
+  discount_value: number;
+  discount_type?: string | null;
+  cpu: string;
+  cpu_specs: string;
+  cpu_bench?: number | null;
+  ram_size: number;
+  ram_type: string;
+  disk_size: string;
+  disk_type?: string | null;
+  port: number;
+  setup: number;
+  kvm: string;
+  stock_available: number;
+}
+
+export interface BaremetalModelsResponse {
+  locations: Array<{
+    location_name: string;
+    description: string;
+    models: BaremetalModelOption[];
+  }>;
+}
+
 // ── Networks ────────────────────────────────────────────────────────────────
 
 export interface Network {
@@ -360,6 +516,49 @@ export interface CreateNetworkRouteRequest {
   description?: string;
 }
 
+export type BGPPeerType = 'ip' | 'vps' | 'baremetal';
+
+export interface BGPPeer {
+  id: string;
+  network_id: number;
+  peer_type: BGPPeerType;
+  /** A private IP of the network, or the id of a VPS / baremetal attached to it. */
+  peer_target: string;
+  remote_asn: number;
+  max_prefix: number;
+  description?: string | null;
+  enabled: boolean;
+  created_at: string;
+  resolved_peer_ip?: string | null;
+  /** Session state reported by the network's routers, e.g. Established. */
+  last_state?: string | null;
+  prefixes_received?: number | null;
+  last_state_at?: string | null;
+  received_prefixes?: string[];
+}
+
+export interface CreateBGPPeerRequest {
+  peer_type: BGPPeerType;
+  peer_target: string;
+  remote_asn: number;
+  max_prefix?: number;
+  description?: string;
+}
+
+export interface CreateBGPPeerResponse {
+  detail: string;
+  peer_id: string;
+  peer_type: string;
+  peer_target: string;
+  remote_asn: number;
+}
+
+export interface UpdateBGPPeerRequest {
+  max_prefix?: number;
+  description?: string;
+  enabled?: boolean;
+}
+
 // ── Floating IPs ────────────────────────────────────────────────────────────
 
 export interface FloatingIP {
@@ -397,7 +596,9 @@ export interface FirewallGroup {
 }
 
 export interface FirewallRule {
+  /** in or out */
   direction: string;
+  /** tcp, udp, icmp or gre */
   protocol: string;
   port?: string;
   source?: string;
@@ -509,6 +710,59 @@ export interface UpdateSOARequest {
   expire?: number;
   minimum?: number;
   hostmaster?: string;
+}
+
+export interface DNSRegion {
+  code: string;
+  name: string;
+}
+
+export type DNSHealthCheckType = 'http' | 'https' | 'tcp' | 'ping';
+
+export interface DNSHealthCheck {
+  uuid: string;
+  record_uuid: string;
+  name: string;
+  check_type: DNSHealthCheckType;
+  target?: string | null;
+  port?: number | null;
+  path?: string | null;
+  expected_status?: number | null;
+  interval_secs: number;
+  timeout_secs: number;
+  healthy_threshold: number;
+  unhealthy_threshold: number;
+  enabled: boolean;
+  /** healthy, unhealthy or unknown */
+  last_status: string;
+  last_check_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Health checks need a Pro or Business zone and an A or AAAA record. */
+export interface UpsertDNSHealthCheckRequest {
+  name: string;
+  check_type: DNSHealthCheckType;
+  /** Bare hostname or IP to probe; defaults to the record's own value. */
+  target?: string;
+  /** Required for tcp. */
+  port?: number;
+  /** http and https only; starts with "/". */
+  path?: string;
+  expected_status?: number;
+  interval_secs?: number;
+  timeout_secs?: number;
+  healthy_threshold?: number;
+  unhealthy_threshold?: number;
+  enabled?: boolean;
+}
+
+export interface DNSImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  records: DNSRecord[];
 }
 
 // ── Load Balancer ───────────────────────────────────────────────────────────
@@ -627,6 +881,20 @@ export interface UpdateTargetRequest {
   enabled?: boolean;
 }
 
+export interface BatchTargetRequest {
+  /** vps, baremetal or availability_group */
+  target_type: string;
+  target_uuid: string;
+  port?: number;
+  weight?: number;
+  enabled?: boolean;
+}
+
+export interface AddTargetsResponse {
+  detail: string;
+  targets?: Array<{ uuid: string; target_type: string; target_uuid: string; target_name?: string | null }>;
+}
+
 // ── CDN ─────────────────────────────────────────────────────────────────────
 
 export interface CDNZone {
@@ -640,6 +908,10 @@ export interface CDNZone {
   project_id?: string;
   origins: CDNOrigin[];
   rules: CDNRule[];
+  token_auth_enabled?: boolean;
+  token_auth_ip_binding?: boolean;
+  cors_enabled?: boolean;
+  cors_allow_origins?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -696,6 +968,19 @@ export interface CDNMetricsParams {
   interval_seconds?: number;
   group_by?: string;
   limit?: number;
+  /** Filters (not every metric accepts the dimension it breaks down). CSV of ISO codes. */
+  country?: string;
+  /** CSV of AS numbers. */
+  asn?: string;
+  /** CSV of status codes; wins over status_range. */
+  status?: string;
+  /** 2xx, 3xx, 4xx or 5xx */
+  status_range?: string;
+  /** HIT or MISS */
+  cache_status?: string;
+  /** mobile, desktop or bot */
+  device_type?: string;
+  path_prefix?: string;
 }
 
 export interface CreateCDNZoneRequest {
@@ -710,6 +995,73 @@ export interface UpdateCDNZoneRequest {
   custom_domain?: string;
   ssl_type?: string;
   certificate_uuid?: string;
+  /** Enabling it returns the new secret once as token_auth_secret. */
+  token_auth_enabled?: boolean;
+  /** Bind signed URLs to the client IP. */
+  token_auth_ip_binding?: boolean;
+  cors_enabled?: boolean;
+  cors_allow_origins?: string;
+}
+
+/** The API answers a message, plus the new secret when token auth gets enabled. */
+export interface CDNZoneUpdateResponse extends Partial<CDNZone> {
+  detail?: string;
+  /** Shown only once. */
+  token_auth_secret?: string | null;
+}
+
+/** Either `everything: true`, or up to 100 paths ("/img/*" purges a prefix). */
+export interface CDNPurgeRequest {
+  everything?: boolean;
+  paths?: string[];
+}
+
+export interface CDNPurgeResponse {
+  detail: string;
+  purge_uuid: string;
+  /** pending, in_progress, completed, partial, failed or expired */
+  status: string;
+}
+
+export interface CDNPurgeProgress {
+  expected: number;
+  completed: number;
+  failed: number;
+}
+
+export interface CDNPurge {
+  purge_uuid: string;
+  /** everything or paths */
+  scope: string;
+  paths: string[];
+  status: string;
+  requested_at?: string | null;
+  completed_at?: string | null;
+  nodes: CDNPurgeProgress;
+  pops: Array<CDNPurgeProgress & { pop: string }>;
+}
+
+export interface CDNTokenSecretResponse {
+  detail: string;
+  /** Shown only once. */
+  token_auth_secret: string;
+}
+
+export interface CDNSignURLRequest {
+  /** Path (or full URL; only the path is signed). */
+  path: string;
+  /** Seconds, 60 to 604800 (default 3600). */
+  expires_in?: number;
+  /** Required when the zone binds tokens to the client IP. */
+  client_ip?: string;
+}
+
+export interface CDNSignedURL {
+  detail: string;
+  signed_url: string;
+  token: string;
+  /** Unix time. */
+  expires: number;
 }
 
 /**
@@ -955,6 +1307,17 @@ export interface InstallAddonRequest {
   custom_values?: Record<string, unknown>;
 }
 
+/** 1h (default), 3h, 6h, 12h, 24h, 3d, 7d or 30d. */
+export type KubernetesMetricsTimeRange = '1h' | '3h' | '6h' | '12h' | '24h' | '3d' | '7d' | '30d';
+
+export interface KubernetesMetrics {
+  start: number;
+  end: number;
+  step: number;
+  /** Series name to [unix time, value] pairs. */
+  metrics: Record<string, Array<[number, number]>>;
+}
+
 // ── Pricing ─────────────────────────────────────────────────────────────────
 
 export interface PricingResponse {
@@ -1005,14 +1368,16 @@ export interface BaremetalModelPrice {
 // ── DDoS ────────────────────────────────────────────────────────────────────
 
 export interface DDoSAttack {
-  attack_id: string;
+  attack_id: number;
   ip_address: string;
   start_time: string;
-  duration: number;
-  packets_second_peak: number;
-  bytes_second_peak: number;
-  status: string;
-  description: string;
+  duration: number | null;
+  packets_second_peak: number | null;
+  gbps_peak?: number | null;
+  /** @deprecated Not returned by the API; see gbps_peak. */
+  bytes_second_peak?: number;
+  status: string | null;
+  description: string | null;
 }
 
 // ── AI Gateway ─────────────────────────────────────────────────────────────
@@ -1442,4 +1807,620 @@ export interface BandwidthUsage {
   totalBytes: number;
   periodStart: number;
   periodEnd: number;
+}
+
+// ── Managed Databases ───────────────────────────────────────────────────────
+
+export type ManagedDatabaseEngine = 'mysql' | 'valkey' | 'postgresql';
+
+export interface ManagedDatabasePlan {
+  uuid: string;
+  name: string;
+  description?: string | null;
+  engine: string;
+  /** vCPU, memory and storage are per node (replica). */
+  cpu: number;
+  memory_gb: number;
+  storage_gb: number;
+  max_replicas: number;
+  /** Per node per hour. */
+  price_per_hour: number;
+}
+
+export interface ManagedDatabaseLocationPlans {
+  location_name: string;
+  location_description?: string | null;
+  plans: ManagedDatabasePlan[];
+}
+
+export interface ManagedDatabaseSummary {
+  uuid: string;
+  project_id: number;
+  name: string;
+  label?: string | null;
+  engine: string;
+  version: string;
+  /** provisioning, active, updating, scaling, backing_up, restoring, degraded, suspended, error or deleting */
+  status: string;
+  /** Null until the database is provisioned. */
+  endpoint_host?: string | null;
+  endpoint_port?: number | null;
+  replicas: number;
+  protected?: boolean;
+}
+
+export interface ManagedDatabase extends ManagedDatabaseSummary {
+  topology: string;
+  plan: ManagedDatabasePlan;
+  location: { id: number; location_name: string; description?: string | null };
+  backup_enabled?: boolean;
+  backup_schedule_cron?: string | null;
+  backup_retention_days?: number;
+  billing_type: string;
+  updated_at: string;
+}
+
+export interface CreateManagedDatabaseRequest {
+  project_id: number;
+  /** 2-60 chars: lowercase letters, digits and hyphens. */
+  name: string;
+  engine: ManagedDatabaseEngine;
+  /** One of the supported versions of the engine, e.g. 8.0.39, 7.2.11 or 17.5.0. */
+  version: string;
+  /** The plan also sets the location. */
+  plan_uuid: string;
+  /** Default 3; at least 3 for mysql and 2 for valkey and postgresql. */
+  replicas?: number;
+  topology?: string;
+  backup?: { schedule_cron: string; retention_days?: number };
+}
+
+export interface CreateManagedDatabaseResponse {
+  detail: string;
+  uuid: string;
+  name: string;
+  engine: string;
+  version: string;
+  status: string;
+}
+
+export interface UpdateManagedDatabaseRequest {
+  name?: string;
+  label?: string;
+  backup?: { enabled?: boolean; schedule_cron?: string; retention_days?: number };
+}
+
+/** Exactly one of replicas (horizontal) or plan_uuid (vertical). */
+export interface ScaleManagedDatabaseRequest {
+  replicas?: number;
+  plan_uuid?: string;
+}
+
+export interface ScaleManagedDatabaseResponse {
+  detail: string;
+  uuid: string;
+  replicas?: number | null;
+  plan?: string | null;
+}
+
+export interface ManagedDatabaseCredentials {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  /** Connection URI, e.g. mysql://user:pass@host:port. */
+  uri: string;
+}
+
+export interface ManagedDatabaseConfigParam {
+  /** int, float, enum or str */
+  type: string;
+  default: unknown;
+  requires_restart: boolean;
+  description: string;
+  value: unknown;
+  value_source: string;
+  min?: number;
+  max?: number;
+  enum?: string[];
+}
+
+export interface ManagedDatabaseConfig {
+  engine: string;
+  params: Record<string, ManagedDatabaseConfigParam>;
+  note: string;
+}
+
+export interface UpdateManagedDatabaseConfigResponse {
+  detail: string;
+  uuid: string;
+  /** Parameters that trigger a brief rolling restart. */
+  requires_restart: string[];
+}
+
+export interface ManagedDatabaseMetricsParams {
+  /** Subset of connections, cpu, memory and replication_lag; default all. */
+  metrics?: string[];
+  /** 1h (default), 24h, 7d, 30d... */
+  time_range?: string;
+}
+
+export interface ManagedDatabaseMetrics {
+  start: number;
+  end: number;
+  metrics: Record<string, Array<[number, number]>>;
+}
+
+export interface ManagedDatabaseLogicalDatabase {
+  uuid: string;
+  name: string;
+  /** pending, active, error or deleting */
+  status: string;
+  created_at?: string | null;
+}
+
+export interface CreateLogicalDatabaseResponse {
+  detail: string;
+  uuid: string;
+  name: string;
+  status: string;
+}
+
+export interface ManagedDatabaseUser {
+  uuid: string;
+  username: string;
+  status: string;
+  created_at?: string | null;
+}
+
+export interface CreateManagedDatabaseUserRequest {
+  username: string;
+  /** 12-64 chars; omit to have one generated. */
+  password?: string;
+}
+
+export interface CreateManagedDatabaseUserResponse {
+  detail: string;
+  uuid: string;
+  username: string;
+  /** Returned only here: store it now. */
+  password: string;
+  status: string;
+}
+
+// ── DDoS Mitigation ─────────────────────────────────────────────────────────
+
+export interface DDoSProtectedIP {
+  network: string;
+  /** IPv4 or IPv6 */
+  ip_type: string;
+  protection_type: string;
+  location_name?: string | null;
+  location_description?: string | null;
+  has_profile?: boolean;
+  firewall_rules_count?: number;
+}
+
+export interface DDoSProtectedSubnet extends DDoSProtectedIP {
+  prefix: number;
+  ip_addresses?: Array<{ address: string; has_profile?: boolean; firewall_rules_count?: number }>;
+}
+
+export interface DDoSIPList {
+  single_ips: DDoSProtectedIP[];
+  subnets: DDoSProtectedSubnet[];
+  total: number;
+}
+
+export interface ListDDoSIPsParams {
+  /** IPv4 or IPv6 */
+  ip_type?: string;
+  location?: string;
+  has_profile?: boolean;
+}
+
+/**
+ * Protection levels are 0-10 (0 = off). tcp_validation_level and tcp_validation_sym_level
+ * are mutually exclusive. default_action: 0 FILTER, 1 ACCEPT, 2 DROP. The *_mode fields:
+ * 0 off, 1 blacklist, 2 whitelist. Rate limits must be at least 1.
+ */
+export interface DDoSProtectionProfileSettings {
+  tcp_validation_level?: number;
+  tcp_validation_sym_level?: number;
+  udp_validation_level?: number;
+  invalid_filter_level?: number;
+  fragmented_filter_level?: number;
+  amplification_udp_level?: number;
+  amplification_tcp_level?: number;
+  icmp_rate_limit_level?: number;
+  same_packet_size_level?: number;
+  stateful_firewall_level?: number;
+  default_action?: number;
+  country_mode?: number;
+  asn_mode?: number;
+  prefix_list_mode?: number;
+  udp_threshold_pps?: number;
+  tcp_threshold_pps?: number;
+  tcp_syn_threshold_pps?: number;
+  tcp_ack_threshold_pps?: number;
+  icmp_threshold_pps?: number;
+  udp_threshold_mbps?: number;
+  tcp_threshold_mbps?: number;
+  tcp_syn_threshold_mbps?: number;
+  tcp_ack_threshold_mbps?: number;
+  icmp_threshold_mbps?: number;
+  syn_flood_threshold?: number;
+  syn_flood_block_secs?: number;
+  /** 0 or 1 */
+  always_on_mitigation?: number;
+  /** 0 or 1 */
+  symmetric_routing?: number;
+}
+
+export interface DDoSProtectionProfile extends Required<DDoSProtectionProfileSettings> {
+  network: string;
+}
+
+export interface DDoSCountry {
+  iso_code: string;
+  name?: string | null;
+}
+
+export interface DDoSASN {
+  asn: number;
+  name?: string | null;
+}
+
+export interface DDoSPrefixList {
+  uuid: string;
+  name: string;
+  description?: string | null;
+  /** Lists provided by CubePath, read only. */
+  is_global?: boolean;
+  created_at?: string | null;
+  entries_count?: number;
+}
+
+export interface CreateDDoSPrefixListRequest {
+  name: string;
+  description?: string;
+}
+
+/**
+ * action: 0 DROP, 1 ACCEPT, 2 FILTER, 10-12 FiveM TCP, 15-17 FiveM UDP, 20-21 RDP,
+ * 30-31 DNS, 40 Minecraft Java, 50 TLS, 60 rate limit (pps), 61 rate limit (Mbps).
+ * protocol: 0 any, 1 ICMP, 6 TCP, 17 UDP. dst_port 0 means any port.
+ */
+export interface CreateDDoSFirewallRuleRequest {
+  network: string;
+  protocol: number;
+  dst_port: number;
+  action: number;
+  /** Rate limit values, only for actions 60 and 61. */
+  tcp_syn?: number;
+  tcp_ack?: number;
+  tcp_synack?: number;
+  tcp_rst?: number;
+  tcp_fin?: number;
+  tcp_all?: number;
+  udp?: number;
+  icmp?: number;
+}
+
+export interface DDoSFirewallRule extends Required<CreateDDoSFirewallRuleRequest> {
+  id: number;
+  action_label: string;
+}
+
+export interface DeleteDDoSFirewallRulesParams {
+  network: string;
+  protocol: number;
+  dst_port: number;
+}
+
+export interface DDoSTrafficCaptureIP {
+  address: string;
+  netmask?: string | null;
+  network: string;
+  location?: string | null;
+  assigned_to?: string | null;
+}
+
+export interface DDoSTrafficStatsRequest {
+  /** ISO 8601. */
+  start_time: string;
+  end_time: string;
+  /** Your IPs to include; empty for all. */
+  destination_ips?: string[];
+  /** 10s, 30s, 1m (default), 5m, 15m or 1h */
+  interval?: string;
+}
+
+export interface DDoSTrafficStats {
+  start_time: string;
+  end_time: string;
+  interval: string;
+  total_pass: number;
+  total_drop: number;
+  buckets: Array<{
+    timestamp: string;
+    pass_count: number;
+    drop_count: number;
+    pass_bytes: number;
+    drop_bytes: number;
+    pass_pps: number;
+    drop_pps: number;
+  }>;
+}
+
+export interface DDoSTrafficCaptureRequest {
+  start_time: string;
+  end_time: string;
+  /** One of your protected IPs or subnets. */
+  destination_ip: string;
+  include_src_ips?: string[];
+  exclude_src_ips?: string[];
+  include_src_ports?: number[];
+  exclude_src_ports?: number[];
+  include_dst_ports?: number[];
+  exclude_dst_ports?: number[];
+  min_src_port?: number;
+  max_src_port?: number;
+  min_dst_port?: number;
+  max_dst_port?: number;
+  /** TCP, UDP, ICMP or OTHER */
+  include_protocols?: string[];
+  exclude_protocols?: string[];
+  /** PASS or DROP */
+  include_actions?: string[];
+  exclude_actions?: string[];
+  include_tcp_flags?: string[];
+  exclude_tcp_flags?: string[];
+  min_packet_len?: number;
+  max_packet_len?: number;
+  min_ttl?: number;
+  max_ttl?: number;
+  has_payload?: boolean;
+  /** 1-100000, default 20000. */
+  limit?: number;
+}
+
+export interface DDoSTrafficLog {
+  timestamp: string;
+  node?: string | null;
+  src_ip: string;
+  dst_ip: string;
+  src_port: number;
+  dst_port: number;
+  protocol: string;
+  action: string;
+  mitigation_name?: string | null;
+  is_drop: boolean;
+  packet_len: number;
+  ttl: number;
+  sample_rate?: number | null;
+  tcp_flags?: string | null;
+  icmp_type?: number | null;
+  icmp_code?: number | null;
+  src_country?: string | null;
+  payload_len?: number | null;
+  payload?: string | null;
+}
+
+export interface DDoSTrafficCapture {
+  start_time: string;
+  end_time: string;
+  total_logs: number;
+  logs: DDoSTrafficLog[];
+}
+
+// ── Cloud Alerts ────────────────────────────────────────────────────────────
+
+export type CloudAlertTargetType = 'vps' | 'baremetal' | 'availability_group';
+/** Baremetal targets only support network_in and network_out. */
+export type CloudAlertMetric = 'cpu' | 'ram' | 'disk' | 'network_in' | 'network_out';
+export type CloudAlertOperator = 'gt' | 'lt' | 'gte' | 'lte' | 'eq';
+export type CloudAlertStatus = 'enabled' | 'disabled' | 'triggered' | 'resolved';
+
+export interface CloudAlertActionRequest {
+  /** Alerts can only send notifications. */
+  action_type: 'notify';
+  notificator_id: string;
+  order?: number;
+  enabled?: boolean;
+}
+
+export interface CloudAlertAction {
+  id: string;
+  action_type: string;
+  notificator_id: string | null;
+  config: Record<string, unknown> | null;
+  order: number;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface CloudAlertSummary {
+  id: string;
+  project_id: number;
+  name: string;
+  description: string | null;
+  target_type: CloudAlertTargetType;
+  /** VPS or baremetal id, or availability group uuid. */
+  target_id: string;
+  metric_type: CloudAlertMetric;
+  operator: CloudAlertOperator;
+  threshold: number;
+  status: CloudAlertStatus;
+  actions_count?: number;
+  created_at: string;
+}
+
+export interface CloudAlert extends Omit<CloudAlertSummary, 'actions_count'> {
+  duration_seconds: number;
+  cooldown_seconds: number;
+  last_triggered_at: string | null;
+  last_resolved_at: string | null;
+  updated_at: string;
+  actions: CloudAlertAction[];
+}
+
+export interface ListCloudAlertsParams {
+  project_id?: number;
+  status?: CloudAlertStatus;
+}
+
+export interface CreateCloudAlertRequest {
+  project_id: number;
+  name: string;
+  description?: string;
+  target_type: CloudAlertTargetType;
+  target_id: string;
+  metric_type: CloudAlertMetric;
+  operator: CloudAlertOperator;
+  /** 0 to 1000000. */
+  threshold: number;
+  /** How long the condition must hold, 60-3600 s (default 300). */
+  duration_seconds?: number;
+  /** Minimum time between two notifications, 60-86400 s (default 600). */
+  cooldown_seconds?: number;
+  /** 1 to 10 actions. */
+  actions: CloudAlertActionRequest[];
+}
+
+/** Every field is optional; `actions` replaces all the actions. */
+export interface UpdateCloudAlertRequest extends Partial<Omit<CreateCloudAlertRequest, 'project_id'>> {
+  /** Use enabled / disabled to pause or resume the alert. */
+  status?: CloudAlertStatus;
+}
+
+export interface CloudAlertHistoryEvent {
+  id: string;
+  trigger_id: string;
+  event_type: string;
+  metric_value: number | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export type NotificatorType = 'slack' | 'email' | 'discord';
+
+export interface Notificator {
+  id: string;
+  name: string;
+  type: NotificatorType;
+  /** Slack and Discord: { webhook_url } (masked when read back); email: { email }. */
+  config: Record<string, string>;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateNotificatorRequest {
+  name: string;
+  type: NotificatorType;
+  /** { webhook_url } for slack and discord; omit for email (sent to your address). */
+  config?: { webhook_url: string };
+  enabled?: boolean;
+}
+
+export interface UpdateNotificatorRequest {
+  name?: string;
+  config?: { webhook_url: string };
+  enabled?: boolean;
+}
+
+// ── Transcoder ──────────────────────────────────────────────────────────────
+
+/** Any S3 compatible bucket. `path` is the object key (input) or the destination prefix (output). */
+export interface TranscoderS3Location {
+  /** Omit for AWS. */
+  endpoint?: string;
+  region?: string;
+  bucket: string;
+  path?: string;
+  access_key?: string;
+  /** Never returned by the API. */
+  secret_key?: string;
+}
+
+export interface TranscoderJobInput {
+  source: 'url' | 's3';
+  url?: string;
+  s3?: TranscoderS3Location;
+}
+
+/** `type` plus free-form per-format settings (codec, height, container, ladder...). */
+export interface TranscoderOutputSpec {
+  type: 'file' | 'hls' | 'thumbnails' | 'gif';
+  [setting: string]: unknown;
+}
+
+export interface CreateTranscoderJobRequest {
+  input: TranscoderJobInput;
+  output: { s3: TranscoderS3Location };
+  /** 1 to 20 outputs. */
+  outputs: TranscoderOutputSpec[];
+  /** Called when the job finishes or fails. */
+  webhook_url?: string;
+  /** Sending the same key again returns the original job. */
+  idempotency_key?: string;
+}
+
+export interface CreateTranscoderBatchRequest {
+  output: { s3: TranscoderS3Location };
+  outputs: TranscoderOutputSpec[];
+  /** Its s3 block is inherited by the inputs that only give a `path`. */
+  input_defaults?: TranscoderJobInput;
+  /** 1 to 1000 inputs: each an s3 location, a url, or a path under input_defaults.s3. */
+  inputs: Array<{
+    s3?: TranscoderS3Location;
+    url?: string;
+    path?: string;
+    /** Appended verbatim to the output path. */
+    out_subpath?: string;
+  }>;
+  webhook_url?: string;
+}
+
+export interface TranscoderBatch {
+  batch_id: string;
+  job_ids: string[];
+  count: number;
+}
+
+export interface TranscoderJob {
+  uuid: string;
+  /** queued, analyzing, encoding, finalizing, completed, failed or canceled */
+  status: string | null;
+  input: Record<string, unknown> | null;
+  output: Record<string, unknown> | null;
+  spec: { outputs: TranscoderOutputSpec[] } | null;
+  /** Files produced ([{ type, bucket, key }]); null until the job finishes. */
+  outputs: Array<{ type: string; bucket: string; key: string }> | null;
+  progress: number | null;
+  total_segments: number | null;
+  completed_segments: number | null;
+  batch_id: string | null;
+  error: string | null;
+  created_at: string | null;
+}
+
+export interface ListTranscoderJobsParams {
+  batch_id?: string;
+  /** 1-500, default 100. */
+  limit?: number;
+  offset?: number;
+}
+
+/** No total count: keep paging until a page has fewer than `limit` jobs. */
+export interface TranscoderJobList {
+  jobs: TranscoderJob[];
+  limit: number;
+  offset: number;
+}
+
+export interface TranscoderJobOutputs {
+  outputs: Array<{ type: string; bucket: string; key: string }> | null;
+  destination: Record<string, unknown> | null;
 }

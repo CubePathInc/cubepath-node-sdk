@@ -16,6 +16,10 @@ import { DDoSService } from './services/ddos';
 import { AIGatewayService } from './services/ai_gateway';
 import { NATGatewayService } from './services/nat_gateway';
 import { ObjectStorageService } from './services/object_storage';
+import { ManagedDatabasesService } from './services/managed_databases';
+import { DDoSMitigationService } from './services/ddos_mitigation';
+import { CloudAlertsService } from './services/cloud_alerts';
+import { TranscoderService } from './services/transcoder';
 
 export class CubePath {
   public readonly projects: ProjectsService;
@@ -34,6 +38,10 @@ export class CubePath {
   public readonly aiGateway: AIGatewayService;
   public readonly natGateway: NATGatewayService;
   public readonly objectStorage: ObjectStorageService;
+  public readonly managedDatabases: ManagedDatabasesService;
+  public readonly ddosMitigation: DDoSMitigationService;
+  public readonly cloudAlerts: CloudAlertsService;
+  public readonly transcoder: TranscoderService;
 
   constructor(options: ClientOptions) {
     const http = new HttpClient(options);
@@ -54,6 +62,10 @@ export class CubePath {
     this.aiGateway = new AIGatewayService(http, options);
     this.natGateway = new NATGatewayService(http);
     this.objectStorage = new ObjectStorageService(http);
+    this.managedDatabases = new ManagedDatabasesService(http);
+    this.ddosMitigation = new DDoSMitigationService(http);
+    this.cloudAlerts = new CloudAlertsService(http);
+    this.transcoder = new TranscoderService(http);
   }
 }
 

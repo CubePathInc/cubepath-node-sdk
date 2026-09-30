@@ -14,6 +14,9 @@ import {
   CreateNodePoolRequest,
   UpdateNodePoolRequest,
   InstallAddonRequest,
+  DetailResponse,
+  KubernetesMetrics,
+  KubernetesMetricsTimeRange,
 } from '../types';
 
 export class KubernetesNodePoolsService {
@@ -116,5 +119,25 @@ export class KubernetesService {
 
   async listLoadBalancers(clusterUUID: string): Promise<KubernetesLB[]> {
     return this.http.get<KubernetesLB[]>(`/kubernetes/${clusterUUID}/loadbalancers`);
+  }
+
+  async setProtection(clusterUUID: string, enabled: boolean): Promise<DetailResponse> {
+    return this.http.post<DetailResponse>(`/kubernetes/${clusterUUID}/protection`, { enabled });
+  }
+
+  /** Cluster health series: nodes_ready, nodes_total, pods_pending, pods_failed, api_latency_ms. */
+  async getMetrics(clusterUUID: string, timeRange?: KubernetesMetricsTimeRange): Promise<KubernetesMetrics> {
+    const query = timeRange ? { time_range: timeRange } : undefined;
+    return this.http.get<KubernetesMetrics>(`/kubernetes/${clusterUUID}/metrics`, query);
+  }
+
+  /** Series of one node, by its Kubernetes node name. */
+  async getNodeMetrics(
+    clusterUUID: string,
+    nodeName: string,
+    timeRange?: KubernetesMetricsTimeRange,
+  ): Promise<KubernetesMetrics> {
+    const query = timeRange ? { time_range: timeRange } : undefined;
+    return this.http.get<KubernetesMetrics>(`/kubernetes/${clusterUUID}/nodes/${nodeName}/metrics`, query);
   }
 }

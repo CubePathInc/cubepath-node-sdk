@@ -8,10 +8,17 @@ import {
   CDNMetricType,
   CreateCDNZoneRequest,
   UpdateCDNZoneRequest,
+  CDNZoneUpdateResponse,
   CreateCDNOriginRequest,
   UpdateCDNOriginRequest,
   CreateCDNRuleRequest,
   UpdateCDNRuleRequest,
+  CDNPurgeRequest,
+  CDNPurgeResponse,
+  CDNPurge,
+  CDNTokenSecretResponse,
+  CDNSignURLRequest,
+  CDNSignedURL,
 } from '../types';
 
 export class CDNWAFService {
@@ -59,8 +66,8 @@ export class CDNService {
     return this.http.post<CDNZone>('/cdn/zones', req);
   }
 
-  async updateZone(zoneUUID: string, req: UpdateCDNZoneRequest): Promise<CDNZone> {
-    return this.http.patch<CDNZone>(`/cdn/zones/${zoneUUID}`, req);
+  async updateZone(zoneUUID: string, req: UpdateCDNZoneRequest): Promise<CDNZoneUpdateResponse> {
+    return this.http.patch<CDNZoneUpdateResponse>(`/cdn/zones/${zoneUUID}`, req);
   }
 
   async deleteZone(zoneUUID: string): Promise<void> {
@@ -127,6 +134,9 @@ export class CDNService {
     if (params?.interval_seconds) query.interval_seconds = String(params.interval_seconds);
     if (params?.group_by) query.group_by = params.group_by;
     if (params?.limit) query.limit = String(params.limit);
+    for (const key of ['country', 'asn', 'status', 'status_range', 'cache_status', 'device_type', 'path_prefix'] as const) {
+      if (params?.[key]) query[key] = params[key] as string;
+    }
     return this.http.get<Record<string, unknown>>(`/cdn/zones/${zoneUUID}/metrics/${metricType}`, query);
   }
 
@@ -140,6 +150,32 @@ export class CDNService {
    */
   async requestSsl(zoneUUID: string): Promise<{ detail: string }> {
     return this.http.post<{ detail: string }>(`/cdn/zones/${zoneUUID}/request-ssl`, {});
+  }
+
+  /**
+   * Purge cached content on every edge node: `{ everything: true }` or up to 100 `paths`
+   * (a trailing `*` purges a prefix). Runs asynchronously; follow it with listPurges.
+   */
+  async purgeCache(zoneUUID: string, req: CDNPurgeRequest): Promise<CDNPurgeResponse> {
+    return this.http.post<CDNPurgeResponse>(`/cdn/zones/${zoneUUID}/purge-cache`, req);
+  }
+
+  /** Recent purges of the zone with their progress per node and PoP. */
+  async listPurges(zoneUUID: string): Promise<CDNPurge[]> {
+    return this.http.get<CDNPurge[]>(`/cdn/zones/${zoneUUID}/purge-cache`);
+  }
+
+  /**
+   * Generate a new token auth secret (shown only once). URLs signed with the old one stop
+   * working. Enable token auth first with updateZone({ token_auth_enabled: true }).
+   */
+  async rotateTokenSecret(zoneUUID: string): Promise<CDNTokenSecretResponse> {
+    return this.http.post<CDNTokenSecretResponse>(`/cdn/zones/${zoneUUID}/token-auth/rotate-secret`, {});
+  }
+
+  /** Sign a URL for a zone with token auth enabled. */
+  async signURL(zoneUUID: string, req: CDNSignURLRequest): Promise<CDNSignedURL> {
+    return this.http.post<CDNSignedURL>(`/cdn/zones/${zoneUUID}/token-auth/sign-url`, req);
   }
 
   /**
