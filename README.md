@@ -590,6 +590,10 @@ const buckets = await client.objectStorage.listBuckets({ project_id: 12 });
 const keys = await client.objectStorage.listKeys();
 const usage = await client.objectStorage.getUsage({ period: '2026-09' });
 
+// Charts of one bucket (GraphQL): stored size and objects, traffic and responses per step
+// over H1, H3, H6, H12, H24 (default), D3, D7 or D30
+const metrics = await client.objectStorage.getBucketMetrics(bucket.uuid, 'D7');
+
 // Delete a key, and a bucket (force purges its content first)
 await client.objectStorage.deleteKey(key.uuid);
 await client.objectStorage.deleteBucket(bucket.uuid, { force: true });

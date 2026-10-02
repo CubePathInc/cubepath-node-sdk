@@ -77,4 +77,29 @@ describe('ObjectStorageService', () => {
     expect(calls[0]).toMatchObject({ url: 'https://api.test/cdn/zones/z1/origins', method: 'POST' });
     expect(calls[0].body).toEqual({ name: 'photos', object_storage_bucket_uuid: 'b1', weight: 100 });
   });
+
+  it('reads the chart series of a bucket through GraphQL', async () => {
+    const calls = mockFetch({
+      data: {
+        objectStorageBucket: {
+          uuid: 'b1',
+          name: 'photos',
+          storageMeasuredAt: 1,
+          storage: { start: 1, end: 2, step: 3600, series: [] },
+          traffic: { start: 1, end: 2, step: 300, series: [] },
+          responses: { start: 1, end: 2, step: 300, series: [] },
+        },
+      },
+    });
+    const metrics = await client().objectStorage.getBucketMetrics('b1', 'D7');
+    expect(calls[0]).toMatchObject({ url: 'https://api.test/graphql', method: 'POST' });
+    expect((calls[0].body as { variables: unknown }).variables).toEqual({ uuid: 'b1', range: 'D7' });
+    expect((calls[0].body as { query: string }).query).toContain('objectStorageBucket');
+    expect(metrics.storage.step).toBe(3600);
+  });
+
+  it('throws 404 for a bucket GraphQL does not find', async () => {
+    mockFetch({ data: { objectStorageBucket: null }, errors: [{ message: 'Resource not found.', extensions: { code: 'NOT_FOUND' } }] });
+    await expect(client().objectStorage.getBucketMetrics('nope')).rejects.toMatchObject({ statusCode: 404 });
+  });
 });
