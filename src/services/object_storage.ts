@@ -20,6 +20,15 @@ import {
   ObjectStorageLifecycleRule,
   SetObjectStorageObjectLockRequest,
   DeleteObjectStorageBucketOptions,
+  ObjectStorageReplication,
+  ObjectStorageReplicationDetail,
+  ListObjectStorageReplicationsParams,
+  CreateObjectStorageReplicationRequest,
+  CreateObjectStorageReplicationResponse,
+  UpdateObjectStorageReplicationRequest,
+  ObjectStorageReplicationGrant,
+  CreateObjectStorageReplicationGrantRequest,
+  CreateObjectStorageReplicationGrantResponse,
 } from '../types';
 
 function toQuery(params?: ObjectStorageUsageParams): Record<string, string> | undefined {
@@ -103,6 +112,86 @@ export class ObjectStorageService {
   /** Removes every lifecycle rule of the bucket. */
   async deleteBucketLifecycle(uuid: string): Promise<ObjectStorageLifecycleChange> {
     return this.http.delete<ObjectStorageLifecycleChange>(`/object-storage/buckets/${uuid}/lifecycle`);
+  }
+
+  // Replication
+
+  /** Outgoing and incoming replications of the organization, newest first. */
+  async listReplications(params?: ListObjectStorageReplicationsParams): Promise<ObjectStorageReplication[]> {
+    const query: Record<string, string> = {};
+    if (params?.direction) query.direction = params.direction;
+    if (params?.bucket_uuid) query.bucket_uuid = params.bucket_uuid;
+    return this.http.get<ObjectStorageReplication[]>(
+      '/object-storage/replications',
+      Object.keys(query).length ? query : undefined,
+    );
+  }
+
+  /** Detail of a replication of one of your buckets, with health, backfill and metrics. */
+  async getReplication(uuid: string): Promise<ObjectStorageReplicationDetail> {
+    return this.http.get<ObjectStorageReplicationDetail>(`/object-storage/replications/${uuid}`);
+  }
+
+  /**
+   * Replicates a bucket to one destination, asynchronously: it works once its status is "active".
+   * Versioning must be enabled on the source (and on a CubePath destination); buckets with
+   * Object Lock cannot be sources. A CubePath destination lives on the same cluster, so it is not
+   * an off site copy; replication to an external destination is billed as egress.
+   */
+  async createReplication(req: CreateObjectStorageReplicationRequest): Promise<CreateObjectStorageReplicationResponse> {
+    return this.http.post<CreateObjectStorageReplicationResponse>('/object-storage/replications', req);
+  }
+
+  /**
+   * Changes the rules, pauses (enabled: false) or resumes, or rotates the credentials of an
+   * external destination. Omitted fields are kept; prefix: null and tags: null remove the filter.
+   */
+  async updateReplication(uuid: string, req: UpdateObjectStorageReplicationRequest): Promise<void> {
+    await this.http.patch(`/object-storage/replications/${uuid}`, req);
+  }
+
+  /** Removes the replication asynchronously. Data already replicated stays in the destination. */
+  async deleteReplication(uuid: string): Promise<void> {
+    await this.http.delete(`/object-storage/replications/${uuid}`);
+  }
+
+  /**
+   * Sends the existing objects again (only those older than olderThanDays when given). The
+   * replication must be active and replicate existing objects.
+   */
+  async resyncReplication(uuid: string, olderThanDays?: number | null): Promise<void> {
+    await this.http.post(`/object-storage/replications/${uuid}/resync`, { older_than_days: olderThanDays ?? null });
+  }
+
+  /** As the owner of the destination bucket, stops an incoming replication of another organization. */
+  async revokeReplication(uuid: string): Promise<void> {
+    await this.http.post(`/object-storage/replications/${uuid}/revoke`);
+  }
+
+  // Replication grants
+
+  /**
+   * Lets another organization replicate into the bucket once. The token is only returned by this
+   * call; it expires after expires_in_days (default 7) and can be revoked until it is used.
+   */
+  async createReplicationGrant(
+    bucketUuid: string,
+    req: CreateObjectStorageReplicationGrantRequest = {},
+  ): Promise<CreateObjectStorageReplicationGrantResponse> {
+    return this.http.post<CreateObjectStorageReplicationGrantResponse>(
+      `/object-storage/buckets/${bucketUuid}/replication-grants`,
+      req,
+    );
+  }
+
+  /** Every grant of the bucket, newest first (never the token). */
+  async listReplicationGrants(bucketUuid: string): Promise<ObjectStorageReplicationGrant[]> {
+    return this.http.get<ObjectStorageReplicationGrant[]>(`/object-storage/buckets/${bucketUuid}/replication-grants`);
+  }
+
+  /** Revokes a grant that was not used yet. */
+  async deleteReplicationGrant(uuid: string): Promise<void> {
+    await this.http.delete(`/object-storage/replication-grants/${uuid}`);
   }
 
   // Access keys

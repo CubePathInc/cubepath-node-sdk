@@ -656,6 +656,73 @@ await client.objectStorage.createKey({
 await client.objectStorage.deleteBucket(vault.uuid, { force: true, bypass_governance: true });
 ```
 
+#### Replication
+
+A replication copies every new object version of a source bucket to one destination,
+asynchronously: another CubePath bucket of the same tier, or an external S3 compatible bucket
+(AWS S3, Wasabi or another provider with versioning) reached over HTTPS on port 443.
+
+- Versioning must be enabled on the source and on a CubePath destination. Buckets with Object
+  Lock cannot be sources (a destination with Object Lock is fine).
+- A CubePath destination lives on the same cluster as the source: it is not a disaster recovery
+  copy. Use an external destination for an off site copy.
+- Replication to an external destination is billed as egress of the source bucket (the existing
+  objects copied by the backfill included). A CubePath destination costs no egress.
+- To replicate into a bucket of another organization, its owner creates a one use grant and
+  shares the token. Inside one organization no grant is needed.
+
+```typescript
+// Same organization: replicate photos/ into another bucket
+const repl = await client.objectStorage.createReplication({
+  source_bucket_uuid: bucket.uuid,
+  destination: { type: 'cubepath', bucket_uuid: backup.uuid },
+  prefix: 'photos/',
+});
+
+// Another organization: the destination owner creates a grant (the token is shown once)...
+const grant = await client.objectStorage.createReplicationGrant(destBucketUuid, { note: 'for Acme', expires_in_days: 7 });
+// ...and the source owner uses it
+await client.objectStorage.createReplication({
+  source_bucket_uuid: bucket.uuid,
+  destination: { type: 'cubepath', bucket_uuid: destBucketUuid, grant_token: grant.token },
+});
+
+// External destination: the secret is never returned
+await client.objectStorage.createReplication({
+  source_bucket_uuid: bucket.uuid,
+  destination: {
+    type: 'external',
+    provider: 'aws',
+    endpoint: 's3.eu-west-1.amazonaws.com',
+    region: 'eu-west-1',
+    bucket: 'acme-backup',
+    access_key_id: process.env.AWS_ACCESS_KEY_ID!,
+    secret_access_key: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+  delete_marker_replication: true,
+});
+
+// Status, health, backfill and metrics
+const detail = await client.objectStorage.getReplication(repl.uuid);
+const outgoing = await client.objectStorage.listReplications({ direction: 'outgoing' });
+
+// Pause, change the rules (null removes the prefix), rotate external credentials
+await client.objectStorage.updateReplication(repl.uuid, { enabled: false });
+await client.objectStorage.updateReplication(repl.uuid, { enabled: true, prefix: null });
+await client.objectStorage.updateReplication(extUuid, { destination: { access_key_id: 'NEW', secret_access_key: 'NEW_SECRET' } });
+
+// Send the existing objects again (optionally only those older than N days)
+await client.objectStorage.resyncReplication(repl.uuid, 30);
+
+// Remove it (the data already replicated stays), or stop an incoming one as destination owner
+await client.objectStorage.deleteReplication(repl.uuid);
+await client.objectStorage.revokeReplication(incomingUuid);
+
+// Grants of a bucket, and revoking one that was not used
+await client.objectStorage.listReplicationGrants(destBucketUuid);
+await client.objectStorage.deleteReplicationGrant(grant.uuid);
+```
+
 Buckets are private. To serve one publicly, add it as an origin of a CDN zone:
 
 ```typescript

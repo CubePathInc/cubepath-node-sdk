@@ -123,6 +123,91 @@ describe('ObjectStorageService', () => {
     expect(calls[0].body).toEqual({ name: 'backups', tier: 'infrequent_access', permission: 'read_only', bucket_uuids: ['b1'] });
   });
 
+  it('lists replications with filters', async () => {
+    const calls = mockFetch([]);
+    const os = client().objectStorage;
+    await os.listReplications();
+    await os.listReplications({ direction: 'incoming', bucket_uuid: 'b2' });
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://api.test/object-storage/replications',
+      'https://api.test/object-storage/replications?direction=incoming&bucket_uuid=b2',
+    ]);
+  });
+
+  it('creates a replication to a CubePath bucket of another organization', async () => {
+    const calls = mockFetch({ detail: 'Replication is being configured', uuid: 'r1', status: 'pending' });
+    const res = await client().objectStorage.createReplication({
+      source_bucket_uuid: 'b1',
+      destination: { type: 'cubepath', bucket_uuid: 'b2', grant_token: 'cprg_x' },
+      prefix: 'img/',
+    });
+    expect(calls[0]).toMatchObject({ url: 'https://api.test/object-storage/replications', method: 'POST' });
+    expect(calls[0].body).toEqual({
+      source_bucket_uuid: 'b1',
+      destination: { type: 'cubepath', bucket_uuid: 'b2', grant_token: 'cprg_x' },
+      prefix: 'img/',
+    });
+    expect(res.uuid).toBe('r1');
+  });
+
+  it('creates a replication to an external bucket', async () => {
+    const calls = mockFetch({ uuid: 'r1', status: 'pending' });
+    const destination = {
+      type: 'external' as const,
+      provider: 'aws' as const,
+      endpoint: 's3.eu-west-1.amazonaws.com',
+      region: 'eu-west-1',
+      bucket: 'acme-backup',
+      access_key_id: 'AKIA',
+      secret_access_key: 'secret',
+    };
+    await client().objectStorage.createReplication({ source_bucket_uuid: 'b1', destination, existing_objects: false });
+    expect(calls[0].body).toEqual({ source_bucket_uuid: 'b1', destination, existing_objects: false });
+  });
+
+  it('gets, updates, resyncs, revokes and deletes a replication', async () => {
+    const calls = mockFetch({ detail: 'ok' });
+    const os = client().objectStorage;
+    await os.getReplication('r1');
+    await os.updateReplication('r1', { enabled: false, prefix: null, tags: null });
+    await os.updateReplication('r1', { destination: { access_key_id: 'AKIA2', secret_access_key: 's2' } });
+    await os.resyncReplication('r1');
+    await os.resyncReplication('r1', 7);
+    await os.revokeReplication('r1');
+    await os.deleteReplication('r1');
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
+      'GET https://api.test/object-storage/replications/r1',
+      'PATCH https://api.test/object-storage/replications/r1',
+      'PATCH https://api.test/object-storage/replications/r1',
+      'POST https://api.test/object-storage/replications/r1/resync',
+      'POST https://api.test/object-storage/replications/r1/resync',
+      'POST https://api.test/object-storage/replications/r1/revoke',
+      'DELETE https://api.test/object-storage/replications/r1',
+    ]);
+    expect(calls[1].body).toEqual({ enabled: false, prefix: null, tags: null });
+    expect(calls[2].body).toEqual({ destination: { access_key_id: 'AKIA2', secret_access_key: 's2' } });
+    expect(calls[3].body).toEqual({ older_than_days: null });
+    expect(calls[4].body).toEqual({ older_than_days: 7 });
+  });
+
+  it('creates, lists and revokes replication grants', async () => {
+    const calls = mockFetch({ uuid: 'g1', token: 'cprg_abc', token_prefix: 'cprg_abcd' });
+    const os = client().objectStorage;
+    const grant = await os.createReplicationGrant('b2', { note: 'for Acme', expires_in_days: 3 });
+    await os.createReplicationGrant('b2');
+    await os.listReplicationGrants('b2');
+    await os.deleteReplicationGrant('g1');
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
+      'POST https://api.test/object-storage/buckets/b2/replication-grants',
+      'POST https://api.test/object-storage/buckets/b2/replication-grants',
+      'GET https://api.test/object-storage/buckets/b2/replication-grants',
+      'DELETE https://api.test/object-storage/replication-grants/g1',
+    ]);
+    expect(calls[0].body).toEqual({ note: 'for Acme', expires_in_days: 3 });
+    expect(calls[1].body).toEqual({});
+    expect(grant.token).toBe('cprg_abc');
+  });
+
   it('gets usage for a period', async () => {
     const calls = mockFetch({ tiers: [], buckets: [] });
     await client().objectStorage.getUsage({ period: '2026-09' });

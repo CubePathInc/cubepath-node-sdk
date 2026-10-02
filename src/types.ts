@@ -1683,6 +1683,8 @@ export interface ObjectStorageBucketDetail extends ObjectStorageBucket {
   usage: ObjectStorageBucketUsage | null;
   /** Null when no CDN origin serves the bucket. */
   cdn: ObjectStorageBucketCDN | null;
+  /** Outgoing replication and number of incoming ones. */
+  replication?: ObjectStorageBucketReplication | null;
 }
 
 export interface ListObjectStorageParams {
@@ -1896,6 +1898,203 @@ export interface ObjectStorageLifecycleChange {
   /** Absent when nothing changed. */
   generation?: number;
   notes?: string[];
+}
+
+// ── Object Storage replication ──────────────────────────────────────────────
+
+/**
+ * Where a replication writes: another CubePath bucket of the same tier (grant_token is needed
+ * when it belongs to another organization) or an external S3 compatible bucket over HTTPS on
+ * port 443. Fields of the other type are refused by the API.
+ */
+export interface ObjectStorageReplicationDestinationInput {
+  type: 'cubepath' | 'external';
+  /** cubepath: the destination bucket uuid. */
+  bucket_uuid?: string;
+  /** cubepath: the one use grant of the destination owner (another organization only). */
+  grant_token?: string;
+  /** external: informative, default "other". */
+  provider?: 'aws' | 'wasabi' | 'other';
+  /** external: public HTTPS host of the provider, optionally with ":443" (no scheme nor path). */
+  endpoint?: string;
+  /** external: 1 to 64 lowercase letters, numbers and hyphens. */
+  region?: string;
+  /** external: the destination bucket name. */
+  bucket?: string;
+  /** external: default "auto". */
+  path_style?: 'auto' | 'on' | 'off';
+  access_key_id?: string;
+  /** Never returned by the API. */
+  secret_access_key?: string;
+}
+
+/** Filter by prefix or by tags, not both. Delete markers cannot be replicated with a tag filter. */
+export interface CreateObjectStorageReplicationRequest {
+  source_bucket_uuid: string;
+  destination: ObjectStorageReplicationDestinationInput;
+  prefix?: string | null;
+  /** 1 to 10 tags with unique keys; objects must carry all of them. */
+  tags?: ObjectStorageLifecycleTag[] | null;
+  /** Default false. */
+  delete_marker_replication?: boolean;
+  /** Default false. */
+  delete_replication?: boolean;
+  /** Default true: copy the objects the bucket already holds. */
+  existing_objects?: boolean;
+}
+
+export interface CreateObjectStorageReplicationResponse {
+  detail: string;
+  uuid: string;
+  /** "pending" until the replication is configured. */
+  status: string;
+}
+
+/**
+ * At least one field. Omitted fields are kept; prefix: null and tags: null remove the filter.
+ * enabled: false pauses the replication and true resumes it. destination rotates the
+ * credentials of an external destination (both fields).
+ */
+export interface UpdateObjectStorageReplicationRequest {
+  enabled?: boolean;
+  prefix?: string | null;
+  tags?: ObjectStorageLifecycleTag[] | null;
+  delete_marker_replication?: boolean;
+  delete_replication?: boolean;
+  existing_objects?: boolean;
+  destination?: { access_key_id: string; secret_access_key: string };
+}
+
+export interface ListObjectStorageReplicationsParams {
+  /** outgoing, incoming or all (default). */
+  direction?: 'outgoing' | 'incoming' | 'all';
+  /** Only the replications whose source (outgoing) or destination (incoming) is this bucket. */
+  bucket_uuid?: string;
+}
+
+export interface ObjectStorageReplicationSource {
+  /** Null for an incoming replication of another organization. */
+  bucket_uuid: string | null;
+  bucket_name: string | null;
+  project_id: number | null;
+  organization_name: string | null;
+  same_organization: boolean;
+}
+
+export interface ObjectStorageReplicationCubePathDestination {
+  type: 'cubepath';
+  bucket_uuid: string | null;
+  bucket_name: string | null;
+  /** Only when the destination is in the caller's organization. */
+  project_id: number | null;
+  organization_name: string | null;
+  same_organization: boolean;
+}
+
+export interface ObjectStorageReplicationExternalDestination {
+  type: 'external';
+  provider: string | null;
+  endpoint: string | null;
+  region: string | null;
+  bucket: string | null;
+  path_style: string;
+  /** Masked: "****" and the last 4 characters. */
+  access_key_id: string | null;
+}
+
+export type ObjectStorageReplicationDestination =
+  | ObjectStorageReplicationCubePathDestination
+  | ObjectStorageReplicationExternalDestination;
+
+export interface ObjectStorageReplicationRules {
+  enabled: boolean;
+  prefix: string | null;
+  tags: ObjectStorageLifecycleTag[];
+  delete_marker_replication: boolean;
+  delete_replication: boolean;
+  existing_objects: boolean;
+}
+
+/** Copy of the existing objects. The counters add up over every attempt and resync. */
+export interface ObjectStorageReplicationBackfill {
+  /** none, queued, running, completed or failed. */
+  status: string;
+  started_at: string | null;
+  finished_at: string | null;
+  objects: number;
+  bytes: number;
+  failed_objects: number;
+}
+
+export interface ObjectStorageReplicationMetrics {
+  replicated_bytes_24h: number | null;
+  replicated_objects_24h: number | null;
+  failed_objects_1h: number | null;
+  queued_objects: number | null;
+  queued_bytes: number | null;
+  last_sample_at: string | null;
+  /** External destinations only (billed as egress of the source bucket). */
+  egress_bytes_month: number | null;
+}
+
+export interface ObjectStorageReplication {
+  uuid: string;
+  /** pending, active, paused, suspended, error or deleting. */
+  status: string;
+  /** customer, org, abuse, admin, source_blocked, dest_revoked or null. */
+  pause_reason: string | null;
+  direction: 'outgoing' | 'incoming';
+  source: ObjectStorageReplicationSource;
+  destination: ObjectStorageReplicationDestination;
+  rules: ObjectStorageReplicationRules;
+  /** unknown, ok, lagging or failing. */
+  health: string;
+  health_reason: string | null;
+  health_checked_at: string | null;
+  backfill: ObjectStorageReplicationBackfill;
+  error_message: string | null;
+  created_at: string | null;
+  active_at: string | null;
+}
+
+export interface ObjectStorageReplicationDetail extends ObjectStorageReplication {
+  /** Null when no sample is available yet. */
+  metrics: ObjectStorageReplicationMetrics | null;
+}
+
+/** Replication summary of a bucket, in getBucket. */
+export interface ObjectStorageBucketReplication {
+  outgoing: ObjectStorageReplication | null;
+  incoming_count: number;
+}
+
+export interface CreateObjectStorageReplicationGrantRequest {
+  /** Up to 255 characters. */
+  note?: string | null;
+  /** 1 to 30, default 7. */
+  expires_in_days?: number;
+}
+
+export interface ObjectStorageReplicationGrant {
+  uuid: string;
+  token_prefix: string;
+  note: string | null;
+  status: 'open' | 'used' | 'expired' | 'revoked';
+  expires_at: string | null;
+  used_at: string | null;
+  revoked_at: string | null;
+  created_at: string | null;
+}
+
+export interface CreateObjectStorageReplicationGrantResponse {
+  detail: string;
+  uuid: string;
+  /** Only returned by this call: share it with the organization that will replicate. */
+  token: string;
+  token_prefix: string;
+  bucket_uuid: string;
+  note: string | null;
+  expires_at: string;
 }
 
 // ── Metrics (GraphQL) ───────────────────────────────────────────────────────
