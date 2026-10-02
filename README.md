@@ -604,6 +604,34 @@ await client.cdn.createOrigin(zone.uuid, {
 });
 ```
 
+#### Presigned URLs
+
+This SDK talks to the CubePath API, not to S3. To share one object for a while, sign a
+presigned GET URL with the official S3 SDK and one of your access keys: endpoint
+`https://eu.cubestorage.io`, region `eu`, path style, SigV4. A URL lasts at most 24 hours
+(86400 seconds), the file is always downloaded as an attachment (do not set
+`ResponseContentDisposition` or any other `response-*` override: they are refused) and every
+download counts as egress of the bucket. Deleting the access key that signed a URL cuts it
+before it expires. From a terminal, `cubecli s3 presign <bucket>/<key> --expires 6h` does the
+same.
+
+```typescript
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+const s3 = new S3Client({
+  region: 'eu',
+  endpoint: 'https://eu.cubestorage.io',
+  forcePathStyle: true,
+  credentials: { accessKeyId: key.access_key_id, secretAccessKey: key.secret_access_key },
+});
+const url = await getSignedUrl(
+  s3,
+  new GetObjectCommand({ Bucket: 'my-backups', Key: 'reports/2026-09.pdf' }),
+  { expiresIn: 86400 },
+);
+```
+
 ### Managed Databases
 
 MySQL, PostgreSQL and Valkey. Databases are provisioned asynchronously: poll `get` until
