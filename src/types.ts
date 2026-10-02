@@ -1898,6 +1898,87 @@ export interface ObjectStorageLifecycleChange {
   notes?: string[];
 }
 
+// ── Object Storage event notifications ──────────────────────────────────────
+
+export type ObjectStorageEventType = 'object.created' | 'object.removed' | 'object.tagging';
+
+/**
+ * Where bucket events are delivered: a signed webhook or a Cloud Alerts channel (Slack or
+ * Discord). The webhook URL is never returned in clear.
+ */
+export interface ObjectStorageEventDestination {
+  uuid: string;
+  name: string;
+  type: 'webhook' | 'notificator';
+  url_masked: string | null;
+  notificator: { id: string; name: string; type: string } | null;
+  payload_format: 'cubepath' | 's3';
+  status: 'active' | 'disabled' | 'auto_disabled' | 'deleted';
+  disabled_reason: 'user' | 'failing' | 'admin' | 'abuse' | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_error: string | null;
+  rules_count: number;
+}
+
+/** Answer of create and rotate-secret, the only calls that return the signing secret. */
+export interface ObjectStorageEventDestinationSecret {
+  destination: ObjectStorageEventDestination;
+  /** whsec_..., null for a channel destination. */
+  signing_secret: string | null;
+}
+
+export interface CreateObjectStorageEventDestinationRequest {
+  name: string;
+  type: 'webhook' | 'notificator';
+  /** Webhook URL (https). */
+  url?: string | null;
+  /** Cloud Alerts channel of a "notificator" destination. */
+  notificator_id?: string | null;
+  payload_format?: 'cubepath' | 's3';
+}
+
+export interface UpdateObjectStorageEventDestinationRequest {
+  name?: string;
+  url?: string;
+  payload_format?: 'cubepath' | 's3';
+  enabled?: boolean;
+}
+
+export interface ListObjectStorageEventDeliveriesParams {
+  status?: 'success' | 'failed' | 'dead';
+  limit?: number;
+  /** Page back from this timestamp. */
+  before?: string;
+}
+
+export type ObjectStorageEventDelivery = Record<string, unknown>;
+
+export interface ObjectStorageEventRule {
+  uuid: string;
+  name: string;
+  bucket_uuid: string;
+  destination: { uuid: string; name: string; type: 'webhook' | 'notificator' };
+  events: ObjectStorageEventType[];
+  prefix: string;
+  suffix: string;
+  enabled: boolean;
+  /** "pending" until applied to the bucket, then "active". */
+  status: 'pending' | 'active' | 'error' | 'deleted';
+  error_message: string | null;
+}
+
+export interface CreateObjectStorageEventRuleRequest {
+  name: string;
+  destination_uuid: string;
+  events: ObjectStorageEventType[];
+  prefix?: string;
+  suffix?: string;
+  enabled?: boolean;
+}
+
+export type UpdateObjectStorageEventRuleRequest = Partial<CreateObjectStorageEventRuleRequest>;
+
 // ── Metrics (GraphQL) ───────────────────────────────────────────────────────
 
 export type MetricsTimeRange = 'H1' | 'H3' | 'H6' | 'H12' | 'H24' | 'D3' | 'D7' | 'D30';

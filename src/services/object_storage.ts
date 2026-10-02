@@ -20,6 +20,15 @@ import {
   ObjectStorageLifecycleRule,
   SetObjectStorageObjectLockRequest,
   DeleteObjectStorageBucketOptions,
+  ObjectStorageEventDestination,
+  ObjectStorageEventDestinationSecret,
+  CreateObjectStorageEventDestinationRequest,
+  UpdateObjectStorageEventDestinationRequest,
+  ListObjectStorageEventDeliveriesParams,
+  ObjectStorageEventDelivery,
+  ObjectStorageEventRule,
+  CreateObjectStorageEventRuleRequest,
+  UpdateObjectStorageEventRuleRequest,
 } from '../types';
 
 function toQuery(params?: ObjectStorageUsageParams): Record<string, string> | undefined {
@@ -103,6 +112,68 @@ export class ObjectStorageService {
   /** Removes every lifecycle rule of the bucket. */
   async deleteBucketLifecycle(uuid: string): Promise<ObjectStorageLifecycleChange> {
     return this.http.delete<ObjectStorageLifecycleChange>(`/object-storage/buckets/${uuid}/lifecycle`);
+  }
+
+  // Event notifications
+
+  async listEventDestinations(): Promise<ObjectStorageEventDestination[]> {
+    return this.http.get<ObjectStorageEventDestination[]>('/object-storage/event-destinations');
+  }
+
+  /** The signing secret is only returned here and by rotateEventDestinationSecret: store it. */
+  async createEventDestination(req: CreateObjectStorageEventDestinationRequest): Promise<ObjectStorageEventDestinationSecret> {
+    return this.http.post<ObjectStorageEventDestinationSecret>('/object-storage/event-destinations', req);
+  }
+
+  async getEventDestination(uuid: string): Promise<ObjectStorageEventDestination> {
+    return this.http.get<ObjectStorageEventDestination>(`/object-storage/event-destinations/${uuid}`);
+  }
+
+  async updateEventDestination(uuid: string, req: UpdateObjectStorageEventDestinationRequest): Promise<ObjectStorageEventDestination> {
+    return this.http.patch<ObjectStorageEventDestination>(`/object-storage/event-destinations/${uuid}`, req);
+  }
+
+  /** Only a destination without rules can be deleted. */
+  async deleteEventDestination(uuid: string): Promise<void> {
+    await this.http.delete(`/object-storage/event-destinations/${uuid}`);
+  }
+
+  /** Issues a new signing secret; the previous one keeps signing for 24 hours. */
+  async rotateEventDestinationSecret(uuid: string): Promise<ObjectStorageEventDestinationSecret> {
+    return this.http.post<ObjectStorageEventDestinationSecret>(`/object-storage/event-destinations/${uuid}/rotate-secret`);
+  }
+
+  /** Sends a cubepath.ping event to the destination. */
+  async testEventDestination(uuid: string): Promise<void> {
+    await this.http.post(`/object-storage/event-destinations/${uuid}/test`);
+  }
+
+  async listEventDeliveries(uuid: string, params?: ListObjectStorageEventDeliveriesParams): Promise<ObjectStorageEventDelivery[]> {
+    const query: Record<string, string> = {};
+    if (params?.status) query.status = params.status;
+    if (params?.limit !== undefined) query.limit = String(params.limit);
+    if (params?.before) query.before = params.before;
+    return this.http.get<ObjectStorageEventDelivery[]>(
+      `/object-storage/event-destinations/${uuid}/deliveries`,
+      Object.keys(query).length ? query : undefined,
+    );
+  }
+
+  async listEventRules(bucketUuid: string): Promise<ObjectStorageEventRule[]> {
+    return this.http.get<ObjectStorageEventRule[]>(`/object-storage/buckets/${bucketUuid}/event-rules`);
+  }
+
+  /** The rule is applied asynchronously: status goes from "pending" to "active". */
+  async createEventRule(bucketUuid: string, req: CreateObjectStorageEventRuleRequest): Promise<ObjectStorageEventRule> {
+    return this.http.post<ObjectStorageEventRule>(`/object-storage/buckets/${bucketUuid}/event-rules`, req);
+  }
+
+  async updateEventRule(bucketUuid: string, ruleUuid: string, req: UpdateObjectStorageEventRuleRequest): Promise<ObjectStorageEventRule> {
+    return this.http.patch<ObjectStorageEventRule>(`/object-storage/buckets/${bucketUuid}/event-rules/${ruleUuid}`, req);
+  }
+
+  async deleteEventRule(bucketUuid: string, ruleUuid: string): Promise<void> {
+    await this.http.delete(`/object-storage/buckets/${bucketUuid}/event-rules/${ruleUuid}`);
   }
 
   // Access keys
