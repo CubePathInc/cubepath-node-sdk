@@ -51,6 +51,48 @@ describe('ObjectStorageService', () => {
     expect(calls[2].body).toEqual({ protected: true });
   });
 
+  it('creates a bucket with Object Lock and changes its default retention', async () => {
+    const calls = mockFetch({ uuid: 'b1', object_lock: { enabled: true, default_retention: null } });
+    const os = client().objectStorage;
+    await os.createBucket({
+      name: 'vault',
+      tier: 'infrequent_access',
+      object_lock: true,
+      object_lock_default: { mode: 'governance', days: 30 },
+      accept_object_lock_terms: true,
+    });
+    await os.setBucketObjectLock('b1', { default_retention: { mode: 'compliance', years: 1 }, accept_object_lock_terms: true });
+    await os.setBucketObjectLock('b1', { default_retention: null });
+    await os.deleteBucket('b1', { force: true, bypass_governance: true });
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
+      'POST https://api.test/object-storage/buckets',
+      'PUT https://api.test/object-storage/buckets/b1/object-lock',
+      'PUT https://api.test/object-storage/buckets/b1/object-lock',
+      'DELETE https://api.test/object-storage/buckets/b1?force=true&bypass_governance=true',
+    ]);
+    expect(calls[0].body).toEqual({
+      name: 'vault',
+      tier: 'infrequent_access',
+      object_lock: true,
+      object_lock_default: { mode: 'governance', days: 30 },
+      accept_object_lock_terms: true,
+    });
+    expect(calls[1].body).toEqual({ default_retention: { mode: 'compliance', years: 1 }, accept_object_lock_terms: true });
+    expect(calls[2].body).toEqual({ default_retention: null });
+  });
+
+  it('creates a key with the governance bypass', async () => {
+    const calls = mockFetch({ uuid: 'k1', bypass_governance: true });
+    const key = await client().objectStorage.createKey({
+      name: 'veeam',
+      tier: 'infrequent_access',
+      permission: 'read_write',
+      bypass_governance: true,
+    });
+    expect(calls[0].body).toEqual({ name: 'veeam', tier: 'infrequent_access', permission: 'read_write', bypass_governance: true });
+    expect(key.bypass_governance).toBe(true);
+  });
+
   it('creates, lists and deletes access keys', async () => {
     const calls = mockFetch({ uuid: 'k1', secret_access_key: 's' });
     const os = client().objectStorage;

@@ -1608,6 +1608,30 @@ export interface ObjectStorageBucket {
   usage_updated_at: string | null;
   monthly_charges: number;
   cdn_connected: boolean;
+  /** Object Lock state: chosen when the bucket is created, never added later. */
+  object_lock: ObjectStorageObjectLock;
+  /**
+   * The last delete left versions protected by Object Lock (retention or legal hold): the
+   * bucket stays and keeps being billed until they expire. Cleared by the next delete.
+   */
+  locked_content_kept: boolean;
+}
+
+/**
+ * An Object Lock default retention. governance: keys with bypass_governance can still delete
+ * early; compliance: nobody can delete or shorten it before the date. Set exactly one of days
+ * or years.
+ */
+export interface ObjectStorageLockRetention {
+  mode: 'governance' | 'compliance';
+  days?: number | null;
+  years?: number | null;
+}
+
+export interface ObjectStorageObjectLock {
+  enabled: boolean;
+  /** Null when the bucket has no default retention. */
+  default_retention: ObjectStorageLockRetention | null;
 }
 
 export interface ObjectStorageBucketUsage {
@@ -1661,7 +1685,34 @@ export interface CreateObjectStorageBucketRequest {
   /** Tier uuid or slug, for example "infrequent_access". */
   tier: string;
   project_id?: number;
+  /** Do not send false together with object_lock: Object Lock implies versioning. */
   versioning?: boolean;
+  /**
+   * Create the bucket with Object Lock (WORM). Only possible now, never later. The bucket keeps
+   * versioning enabled and is created with deletion protection on.
+   */
+  object_lock?: boolean;
+  /** Default retention of new objects (only with object_lock). */
+  object_lock_default?: ObjectStorageLockRetention | null;
+  /** Must be true with object_lock: you accept the Object Lock terms. */
+  accept_object_lock_terms?: boolean;
+}
+
+export interface SetObjectStorageObjectLockRequest {
+  /** The new default retention, or null to remove it (a compliance rule can only be kept or lengthened). */
+  default_retention: ObjectStorageLockRetention | null;
+  /** Required (true) when the change turns compliance on or lengthens the retention. */
+  accept_object_lock_terms?: boolean;
+}
+
+export interface DeleteObjectStorageBucketOptions {
+  /** Purge every object and version first. */
+  force?: boolean;
+  /**
+   * With force, on a bucket with Object Lock: also delete the versions under governance
+   * retention. Versions under compliance or a legal hold are always kept.
+   */
+  bypass_governance?: boolean;
 }
 
 export interface CreateObjectStorageBucketResponse {
@@ -1673,6 +1724,7 @@ export interface CreateObjectStorageBucketResponse {
   tier: ObjectStorageTierSummary;
   region: string;
   endpoint: string;
+  object_lock: ObjectStorageObjectLock;
 }
 
 export interface UpdateObjectStorageBucketRequest {
@@ -1701,6 +1753,8 @@ export interface ObjectStorageAccessKey {
   /** pending, active, suspended, error or deleting */
   status: string;
   expires_at: string | null;
+  /** read_write keys only: may delete versions under governance retention. */
+  bypass_governance: boolean;
 }
 
 export interface CreateObjectStorageAccessKeyRequest {
@@ -1714,6 +1768,11 @@ export interface CreateObjectStorageAccessKeyRequest {
   bucket_uuids?: string[];
   /** ISO 8601 date time in the future. */
   expires_at?: string;
+  /**
+   * read_write keys only: the key may delete versions under governance retention (sending
+   * x-amz-bypass-governance-retention: true). Cannot be changed later.
+   */
+  bypass_governance?: boolean;
 }
 
 export interface CreateObjectStorageAccessKeyResponse extends ObjectStorageAccessKey {
