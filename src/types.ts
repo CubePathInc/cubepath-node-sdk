@@ -1615,6 +1615,17 @@ export interface ObjectStorageBucket {
    * bucket stays and keeps being billed until they expire. Cleared by the next delete.
    */
   locked_content_kept: boolean;
+  /** Encryption at rest (SSE-S3); null until the bucket default is applied. */
+  encryption?: ObjectStorageBucketEncryption | null;
+}
+
+/**
+ * Encryption at rest of a bucket. scope new_objects: objects written before the bucket default
+ * may still be stored unencrypted (older buckets until they are re-encrypted).
+ */
+export interface ObjectStorageBucketEncryption {
+  algorithm: 'AES256';
+  scope: 'all_objects' | 'new_objects';
 }
 
 /**
