@@ -18,6 +18,8 @@ import {
   ObjectStorageLifecycle,
   ObjectStorageLifecycleChange,
   ObjectStorageLifecycleRule,
+  SetObjectStorageObjectLockRequest,
+  DeleteObjectStorageBucketOptions,
 } from '../types';
 
 function toQuery(params?: ObjectStorageUsageParams): Record<string, string> | undefined {
@@ -58,12 +60,29 @@ export class ObjectStorageService {
   }
 
   /**
-   * Deletes the bucket asynchronously. Without force only an empty bucket is deleted;
-   * with force every object and version is purged first.
+   * Changes or removes (default_retention null) the default retention of a bucket created with
+   * Object Lock. Object Lock itself can only be enabled when the bucket is created.
    */
-  async deleteBucket(uuid: string, options?: { force?: boolean }): Promise<void> {
-    const query = options?.force ? { force: 'true' } : undefined;
-    await this.http.request('DELETE', `/object-storage/buckets/${uuid}`, undefined, query);
+  async setBucketObjectLock(uuid: string, req: SetObjectStorageObjectLockRequest): Promise<void> {
+    await this.http.put(`/object-storage/buckets/${uuid}/object-lock`, req);
+  }
+
+  /**
+   * Deletes the bucket asynchronously. Without force only an empty bucket is deleted;
+   * with force every object and version is purged first. bypass_governance (only with force)
+   * also deletes versions under governance retention; versions under compliance or a legal hold
+   * are kept and the bucket comes back with locked_content_kept set.
+   */
+  async deleteBucket(uuid: string, options?: DeleteObjectStorageBucketOptions): Promise<void> {
+    const query: Record<string, string> = {};
+    if (options?.force) query.force = 'true';
+    if (options?.bypass_governance) query.bypass_governance = 'true';
+    await this.http.request(
+      'DELETE',
+      `/object-storage/buckets/${uuid}`,
+      undefined,
+      Object.keys(query).length ? query : undefined,
+    );
   }
 
   // Lifecycle rules
