@@ -28,7 +28,7 @@ describe('Object Storage event notifications', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('covers the destination and rule routes', async () => {
-    const calls = mockFetch({ destination: { uuid: 'd1' }, signing_secret: 'whsec_x' });
+    const calls = mockFetch({ destination: { uuid: 'd1' }, signing_secret: 'whsec_x', deliveries: [], next_before: null });
     const os = client().objectStorage;
     const created = await os.createEventDestination({ name: 'hook', type: 'webhook', url: 'https://example.com/h' });
     expect(created.signing_secret).toBe('whsec_x');
@@ -37,7 +37,8 @@ describe('Object Storage event notifications', () => {
     await os.updateEventDestination('d1', { enabled: false });
     await os.rotateEventDestinationSecret('d1');
     await os.testEventDestination('d1');
-    await os.listEventDeliveries('d1', { status: 'failed', limit: 10 });
+    const page = await os.listEventDeliveries('d1', { status: 'failed', limit: 10, before: 1790964001250 });
+    expect(page).toHaveProperty('deliveries');
     await os.deleteEventDestination('d1');
     await os.listEventRules('b1');
     await os.createEventRule('b1', { name: 'r', destination_uuid: 'd1', events: ['object.created'], prefix: 'in/' });
@@ -50,7 +51,7 @@ describe('Object Storage event notifications', () => {
       'PATCH /object-storage/event-destinations/d1',
       'POST /object-storage/event-destinations/d1/rotate-secret',
       'POST /object-storage/event-destinations/d1/test',
-      'GET /object-storage/event-destinations/d1/deliveries?status=failed&limit=10',
+      'GET /object-storage/event-destinations/d1/deliveries?status=failed&limit=10&before=1790964001250',
       'DELETE /object-storage/event-destinations/d1',
       'GET /object-storage/buckets/b1/event-rules',
       'POST /object-storage/buckets/b1/event-rules',
@@ -64,6 +65,8 @@ describe('Object Storage event notifications', () => {
   it('verifies signatures with the fixed vectors', () => {
     expect(() => verifyStorageEventSignature(SECRET, TS, BODY, `v1=${SIG}`, 300, NOW)).not.toThrow();
     expect(() => verifyStorageEventSignature(SECRET, TS, Buffer.from(BODY), `v1=${PREV_SIG},v1=${SIG}`, 300, NOW)).not.toThrow();
+    // The exact form the service sends during a rotation.
+    expect(() => verifyStorageEventSignature(SECRET, TS, BODY, `v1=${SIG}, v1=${PREV_SIG}`, 300, NOW)).not.toThrow();
     expect(() => verifyStorageEventSignature('whsec_previous', TS, BODY, `v1=${SIG}, v1=${PREV_SIG}`, 300, NOW)).not.toThrow();
   });
 

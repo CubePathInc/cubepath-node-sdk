@@ -13,7 +13,7 @@ export class StorageEventSignatureError extends Error {
  *
  * `secret` is the signing secret of the destination, `timestamp` the CubePath-Timestamp header
  * (unix seconds), `body` the raw request body (verify before parsing it) and `header` the
- * CubePath-Signature header: one or more `v1=<hex>` values (several during a secret rotation),
+ * CubePath-Signature header: one or more `v1=<hex>` values (`v1=<new>, v1=<previous>` during a rotation),
  * each the HMAC-SHA256 of `timestamp + "." + body`. Deliveries whose timestamp is further than
  * `toleranceSeconds` (default 300) from now are rejected; pass 0 to skip that check.
  *

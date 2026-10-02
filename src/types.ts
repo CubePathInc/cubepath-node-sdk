@@ -1915,10 +1915,13 @@ export interface ObjectStorageEventDestination {
   payload_format: 'cubepath' | 's3';
   status: 'active' | 'disabled' | 'auto_disabled' | 'deleted';
   disabled_reason: 'user' | 'failing' | 'admin' | 'abuse' | null;
+  /** Until when the secret before the last rotation still signs. */
+  previous_secret_expires_at: string | null;
   last_success_at: string | null;
   last_failure_at: string | null;
   last_error: string | null;
   rules_count: number;
+  created_at: string | null;
 }
 
 /** Answer of create and rotate-secret, the only calls that return the signing secret. */
@@ -1926,6 +1929,8 @@ export interface ObjectStorageEventDestinationSecret {
   destination: ObjectStorageEventDestination;
   /** whsec_..., null for a channel destination. */
   signing_secret: string | null;
+  /** Only in a rotation: the previous secret signs until then. */
+  previous_secret_expires_at?: string;
 }
 
 export interface CreateObjectStorageEventDestinationRequest {
@@ -1947,18 +1952,44 @@ export interface UpdateObjectStorageEventDestinationRequest {
 
 export interface ListObjectStorageEventDeliveriesParams {
   status?: 'success' | 'failed' | 'dead';
+  /** 1 to 200, default 50. */
   limit?: number;
-  /** Page back from this timestamp. */
-  before?: string;
+  /** Unix milliseconds (exclusive): pass next_before of the previous page. */
+  before?: number;
 }
 
-export type ObjectStorageEventDelivery = Record<string, unknown>;
+/** One delivery attempt. status: success, failed (retried later) or dead (given up). */
+export interface ObjectStorageEventDelivery {
+  ts: string;
+  ts_ms: number;
+  event_id: string;
+  delivery_id: string;
+  event_type: string;
+  bucket_uuid: string;
+  /** null for a bucket no longer in the organization. */
+  bucket_name: string | null;
+  rule_uuid: string;
+  object_key: string;
+  attempt: number;
+  status: 'success' | 'failed' | 'dead';
+  http_status: number;
+  latency_ms: number;
+  /** "" on success. */
+  error: string;
+}
+
+/** A page of the delivery history, newest first. */
+export interface ObjectStorageEventDeliveries {
+  deliveries: ObjectStorageEventDelivery[];
+  /** Pass as `before` for the next (older) page; null on the last page. */
+  next_before: number | null;
+}
 
 export interface ObjectStorageEventRule {
   uuid: string;
   name: string;
   bucket_uuid: string;
-  destination: { uuid: string; name: string; type: 'webhook' | 'notificator' };
+  destination: { uuid: string; name: string; type: 'webhook' | 'notificator' } | null;
   events: ObjectStorageEventType[];
   prefix: string;
   suffix: string;
@@ -1966,6 +1997,7 @@ export interface ObjectStorageEventRule {
   /** "pending" until applied to the bucket, then "active". */
   status: 'pending' | 'active' | 'error' | 'deleted';
   error_message: string | null;
+  created_at: string | null;
 }
 
 export interface CreateObjectStorageEventRuleRequest {

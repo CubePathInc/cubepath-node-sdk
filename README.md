@@ -688,11 +688,12 @@ const rule = await client.objectStorage.createEventRule(bucket.uuid, {
 }); // rule.status is "pending" until applied, then "active"
 
 await client.objectStorage.testEventDestination(destination.uuid); // sends a cubepath.ping
-const failed = await client.objectStorage.listEventDeliveries(destination.uuid, { status: 'failed', limit: 20 });
+const page = await client.objectStorage.listEventDeliveries(destination.uuid, { status: 'failed', limit: 20 });
+// Older page: { before: page.next_before } while next_before is not null (unix milliseconds).
 ```
 
 Verify every webhook delivery before trusting it, against the raw body. `CubePath-Signature`
-holds one or more `v1=<hex>` values, each the HMAC-SHA256 of `CubePath-Timestamp + "." + body`;
+holds one or more `v1=<hex>` values (`v1=<new>, v1=<previous>` for 24 hours after a rotation), each the HMAC-SHA256 of `CubePath-Timestamp + "." + body`;
 `verifyStorageEventSignature` compares them in constant time and rejects timestamps more than
 5 minutes away:
 

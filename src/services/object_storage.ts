@@ -25,7 +25,7 @@ import {
   CreateObjectStorageEventDestinationRequest,
   UpdateObjectStorageEventDestinationRequest,
   ListObjectStorageEventDeliveriesParams,
-  ObjectStorageEventDelivery,
+  ObjectStorageEventDeliveries,
   ObjectStorageEventRule,
   CreateObjectStorageEventRuleRequest,
   UpdateObjectStorageEventRuleRequest,
@@ -143,17 +143,18 @@ export class ObjectStorageService {
     return this.http.post<ObjectStorageEventDestinationSecret>(`/object-storage/event-destinations/${uuid}/rotate-secret`);
   }
 
-  /** Sends a cubepath.ping event to the destination. */
-  async testEventDestination(uuid: string): Promise<void> {
-    await this.http.post(`/object-storage/event-destinations/${uuid}/test`);
+  /** Delivers a cubepath.ping now (the destination must be active); the outcome shows up in the delivery history. */
+  async testEventDestination(uuid: string): Promise<{ detail: string }> {
+    return this.http.post<{ detail: string }>(`/object-storage/event-destinations/${uuid}/test`);
   }
 
-  async listEventDeliveries(uuid: string, params?: ListObjectStorageEventDeliveriesParams): Promise<ObjectStorageEventDelivery[]> {
+  /** A page of the delivery history, newest first; page back with `before: next_before`. */
+  async listEventDeliveries(uuid: string, params?: ListObjectStorageEventDeliveriesParams): Promise<ObjectStorageEventDeliveries> {
     const query: Record<string, string> = {};
     if (params?.status) query.status = params.status;
     if (params?.limit !== undefined) query.limit = String(params.limit);
-    if (params?.before) query.before = params.before;
-    return this.http.get<ObjectStorageEventDelivery[]>(
+    if (params?.before !== undefined) query.before = String(params.before);
+    return this.http.get<ObjectStorageEventDeliveries>(
       `/object-storage/event-destinations/${uuid}/deliveries`,
       Object.keys(query).length ? query : undefined,
     );
