@@ -1,5 +1,8 @@
 import { HttpClient } from '../client';
+import { CubePathError } from '../errors';
 import {
+  MetricsTimeRange,
+  ObjectStorageBucketMetrics,
   ObjectStorageTier,
   ObjectStorageBucket,
   ObjectStorageBucketDetail,
@@ -79,5 +82,21 @@ export class ObjectStorageService {
 
   async getUsage(params?: ObjectStorageUsageParams): Promise<ObjectStorageUsage> {
     return this.http.get<ObjectStorageUsage>('/object-storage/usage', toQuery(params));
+  }
+
+  // Charts
+
+  /**
+   * Chart series of a bucket over H1, H3, H6, H12, H24 (default), D3, D7 or D30: stored size and
+   * objects, billable traffic and every response by status class. Served through GraphQL.
+   */
+  async getBucketMetrics(uuid: string, range: MetricsTimeRange = 'H24'): Promise<ObjectStorageBucketMetrics> {
+    const result = 'start end step series { name unit points { ts value } }';
+    const data = await this.http.graphql<{ objectStorageBucket: ObjectStorageBucketMetrics | null }>(
+      `query($uuid: ID!, $range: TimeRange!) { objectStorageBucket(uuid: $uuid) { uuid name storageMeasuredAt storage(range: $range) { ${result} } traffic(range: $range) { ${result} } responses(range: $range) { ${result} } } }`,
+      { uuid, range },
+    );
+    if (!data?.objectStorageBucket) throw new CubePathError(404, 'Not Found', `Bucket ${uuid} not found`);
+    return data.objectStorageBucket;
   }
 }

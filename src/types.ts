@@ -1801,6 +1801,23 @@ export interface MetricsResult {
   series: MetricSeries[];
 }
 
+/**
+ * Chart series of one Object Storage bucket (GraphQL `objectStorageBucket`). storage: size_bytes,
+ * objects (hourly); traffic: egress_bytes, cdn_bytes, ingress_bytes, class_a_requests,
+ * class_b_requests, free_requests; responses: responses_2xx, responses_3xx, responses_4xx,
+ * responses_5xx, responses_429, responses_other. Traffic and responses are totals per step,
+ * not rates.
+ */
+export interface ObjectStorageBucketMetrics {
+  uuid: string;
+  name: string;
+  /** Unix time of the newest size sample, null before the first one. */
+  storageMeasuredAt: number | null;
+  storage: MetricsResult;
+  traffic: MetricsResult;
+  responses: MetricsResult;
+}
+
 export interface BandwidthUsage {
   inBytes: number;
   outBytes: number;
