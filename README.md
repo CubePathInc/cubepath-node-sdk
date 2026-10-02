@@ -576,11 +576,6 @@ const detail = await client.objectStorage.getBucket(bucket.uuid);
 // Versioning or deletion protection
 await client.objectStorage.updateBucket(bucket.uuid, { versioning: 'enabled', protected: true });
 
-// Encryption at rest (AES-256) is on by default; createBucket({ ..., encryption: false }) skips it.
-// It can be enabled later (the objects already stored are encrypted in the background; in a
-// versioned bucket only the current versions) and never turned off.
-const change = await client.objectStorage.enableBucketEncryption(bucket.uuid);
-
 // Create an access key: the secret is only returned here
 const key = await client.objectStorage.createKey({
   name: 'backups',

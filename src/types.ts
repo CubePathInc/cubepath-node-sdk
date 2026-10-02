@@ -1615,7 +1615,7 @@ export interface ObjectStorageBucket {
    * bucket stays and keeps being billed until they expire. Cleared by the next delete.
    */
   locked_content_kept: boolean;
-  /** Encryption at rest (SSE-S3); null while it is off. */
+  /** Encryption at rest (SSE-S3); null until the bucket default is applied. */
   encryption?: ObjectStorageBucketEncryption | null;
 }
 
@@ -1626,14 +1626,6 @@ export interface ObjectStorageBucket {
 export interface ObjectStorageBucketEncryption {
   algorithm: 'AES256';
   scope: 'all_objects' | 'new_objects';
-  /** When encryption was turned on for the bucket (UTC, ISO 8601). */
-  applied_at?: string | null;
-}
-
-/** Answer of enableBucketEncryption. reencrypt_job_id: the objects already stored are being encrypted. */
-export interface ObjectStorageEncryptionChange {
-  detail: string;
-  reencrypt_job_id?: number | null;
 }
 
 /**
@@ -1715,11 +1707,6 @@ export interface CreateObjectStorageBucketRequest {
   object_lock_default?: ObjectStorageLockRetention | null;
   /** Must be true with object_lock: you accept the Object Lock terms. */
   accept_object_lock_terms?: boolean;
-  /**
-   * Encryption at rest (AES-256); true when omitted. false creates the bucket without it: it can
-   * be enabled later (enableBucketEncryption), never turned off.
-   */
-  encryption?: boolean;
 }
 
 export interface SetObjectStorageObjectLockRequest {
