@@ -1778,6 +1778,56 @@ export interface ObjectStorageUsageParams extends ListObjectStorageParams {
   period?: string;
 }
 
+export interface ObjectStorageLifecycleTag {
+  key: string;
+  value: string;
+}
+
+/** Limits a rule to part of the bucket; absent fields mean the whole bucket. */
+export interface ObjectStorageLifecycleFilter {
+  /** A leading "/" is removed by the API. */
+  prefix?: string | null;
+  tags?: ObjectStorageLifecycleTag[] | null;
+  object_size_greater_than?: number | null;
+  object_size_less_than?: number | null;
+}
+
+/**
+ * One lifecycle rule. id: 1 to 64 letters, numbers, dots, hyphens and underscores, unique,
+ * not starting with "cubepath-". At least one action.
+ */
+export interface ObjectStorageLifecycleRule {
+  id: string;
+  enabled: boolean;
+  filter?: ObjectStorageLifecycleFilter | null;
+  /** days (1 to 36500), date ("YYYY-MM-DD", after today UTC) or expired_object_delete_marker. */
+  expiration?: { days?: number | null; date?: string | null; expired_object_delete_marker?: boolean | null } | null;
+  noncurrent_version_expiration?: { noncurrent_days: number; newer_noncurrent_versions?: number | null } | null;
+  /** 1 to 7 days (incomplete uploads are aborted after 7 days anyway). */
+  abort_incomplete_multipart_upload?: { days_after_initiation: number } | null;
+}
+
+export interface ObjectStorageLifecycle {
+  bucket_uuid: string;
+  /** none, pending, active, paused (bucket blocked or on hold) or error. */
+  status: string;
+  rules: ObjectStorageLifecycleRule[];
+  platform_rules: Record<string, unknown>[];
+  generation: number;
+  /** The rules are applied once this reaches generation. */
+  applied_generation: number;
+  error: string | null;
+  updated_at: string | null;
+  notes: string[];
+}
+
+export interface ObjectStorageLifecycleChange {
+  detail: string;
+  /** Absent when nothing changed. */
+  generation?: number;
+  notes?: string[];
+}
+
 // ── Metrics (GraphQL) ───────────────────────────────────────────────────────
 
 export type MetricsTimeRange = 'H1' | 'H3' | 'H6' | 'H12' | 'H24' | 'D3' | 'D7' | 'D30';
