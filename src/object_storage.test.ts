@@ -51,6 +51,22 @@ describe('ObjectStorageService', () => {
     expect(calls[2].body).toEqual({ protected: true });
   });
 
+  it('gets, sets and deletes lifecycle rules', async () => {
+    const calls = mockFetch({ detail: 'ok', generation: 3 });
+    const os = client().objectStorage;
+    await os.getBucketLifecycle('b1');
+    const rules = [{ id: 'logs-30d', enabled: true, filter: { prefix: 'logs/' }, expiration: { days: 30 } }];
+    const change = await os.putBucketLifecycle('b1', rules);
+    await os.deleteBucketLifecycle('b1');
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
+      'GET https://api.test/object-storage/buckets/b1/lifecycle',
+      'PUT https://api.test/object-storage/buckets/b1/lifecycle',
+      'DELETE https://api.test/object-storage/buckets/b1/lifecycle',
+    ]);
+    expect(calls[1].body).toEqual({ rules });
+    expect(change.generation).toBe(3);
+  });
+
   it('creates, lists and deletes access keys', async () => {
     const calls = mockFetch({ uuid: 'k1', secret_access_key: 's' });
     const os = client().objectStorage;

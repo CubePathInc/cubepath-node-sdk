@@ -599,6 +599,20 @@ await client.objectStorage.deleteKey(key.uuid);
 await client.objectStorage.deleteBucket(bucket.uuid, { force: true });
 ```
 
+Lifecycle rules delete objects in the background, permanently. `putBucketLifecycle` replaces every
+rule and is applied asynchronously (seconds, up to about 12 minutes after a previous change of the same
+bucket); objects go within 48 hours of their due date. In a versioned bucket an expiration only
+adds a delete marker: add a `noncurrent_version_expiration` rule to free space.
+
+```typescript
+const change = await client.objectStorage.putBucketLifecycle(bucket.uuid, [
+  { id: 'logs-30d', enabled: true, filter: { prefix: 'logs/' }, expiration: { days: 30 } },
+  { id: 'old-versions', enabled: true, noncurrent_version_expiration: { noncurrent_days: 30 } },
+]);
+const lifecycle = await client.objectStorage.getBucketLifecycle(bucket.uuid); // applied when applied_generation >= generation
+await client.objectStorage.deleteBucketLifecycle(bucket.uuid);
+```
+
 Buckets are private. To serve one publicly, add it as an origin of a CDN zone:
 
 ```typescript
