@@ -51,6 +51,20 @@ describe('ObjectStorageService', () => {
     expect(calls[2].body).toEqual({ protected: true });
   });
 
+  it('creates a bucket without encryption and enables it later', async () => {
+    const calls = mockFetch({ detail: 'Encryption at rest is being enabled', reencrypt_job_id: 7 });
+    const os = client().objectStorage;
+    await os.createBucket({ name: 'scratch', tier: 'infrequent_access', encryption: false });
+    const change = await os.enableBucketEncryption('b1');
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
+      'POST https://api.test/object-storage/buckets',
+      'PUT https://api.test/object-storage/buckets/b1/encryption',
+    ]);
+    expect(calls[0].body).toEqual({ name: 'scratch', tier: 'infrequent_access', encryption: false });
+    expect(calls[1].body).toEqual({ enabled: true });
+    expect(change.reencrypt_job_id).toBe(7);
+  });
+
   it('gets, sets and deletes lifecycle rules', async () => {
     const calls = mockFetch({ detail: 'ok', generation: 3 });
     const os = client().objectStorage;

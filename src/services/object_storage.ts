@@ -20,6 +20,7 @@ import {
   ObjectStorageLifecycleRule,
   SetObjectStorageObjectLockRequest,
   DeleteObjectStorageBucketOptions,
+  ObjectStorageEncryptionChange,
 } from '../types';
 
 function toQuery(params?: ObjectStorageUsageParams): Record<string, string> | undefined {
@@ -65,6 +66,15 @@ export class ObjectStorageService {
    */
   async setBucketObjectLock(uuid: string, req: SetObjectStorageObjectLockRequest): Promise<void> {
     await this.http.put(`/object-storage/buckets/${uuid}/object-lock`, req);
+  }
+
+  /**
+   * Turns on encryption at rest (AES-256) for a bucket created without it. The objects already
+   * stored are encrypted in the background (reencrypt_job_id); in a versioned bucket only the
+   * current versions are. It cannot be turned off afterwards; on an encrypted bucket nothing changes.
+   */
+  async enableBucketEncryption(uuid: string): Promise<ObjectStorageEncryptionChange> {
+    return this.http.put<ObjectStorageEncryptionChange>(`/object-storage/buckets/${uuid}/encryption`, { enabled: true });
   }
 
   /**
