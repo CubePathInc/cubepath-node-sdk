@@ -732,6 +732,54 @@ await client.cdn.createOrigin(zone.uuid, {
 });
 ```
 
+#### Event Notifications
+
+Send bucket events (`object.created`, `object.removed`, `object.tagging`) to a signed webhook
+or to a Cloud Alerts channel. A destination belongs to the organization; a rule on a bucket picks
+the events, an optional key prefix and suffix, and the destination. The signing secret is only
+returned by `createEventDestination` and `rotateEventDestinationSecret`: store it then. After a
+rotation the previous secret keeps signing for 24 hours.
+
+```typescript
+const { destination, signing_secret } = await client.objectStorage.createEventDestination({
+  name: 'uploads-hook',
+  type: 'webhook',
+  url: 'https://example.com/hooks/storage', // or type: 'notificator', notificator_id: channelId
+});
+
+const rule = await client.objectStorage.createEventRule(bucket.uuid, {
+  name: 'new-uploads',
+  destination_uuid: destination.uuid,
+  events: ['object.created'],
+  prefix: 'incoming/',
+}); // rule.status is "pending" until applied, then "active"
+
+await client.objectStorage.testEventDestination(destination.uuid); // sends a cubepath.ping
+const page = await client.objectStorage.listEventDeliveries(destination.uuid, { status: 'failed', limit: 20 });
+// Older page: { before: page.next_before } while next_before is not null (unix milliseconds).
+```
+
+Verify every webhook delivery before trusting it, against the raw body. `CubePath-Signature`
+holds one or more `v1=<hex>` values (`v1=<new>, v1=<previous>` for 24 hours after a rotation), each the HMAC-SHA256 of `CubePath-Timestamp + "." + body`;
+`verifyStorageEventSignature` compares them in constant time and rejects timestamps more than
+5 minutes away:
+
+```typescript
+import express from 'express';
+import { verifyStorageEventSignature } from '@cubepath/sdk';
+
+app.post('/hooks/storage', express.raw({ type: '*/*' }), (req, res) => {
+  try {
+    verifyStorageEventSignature(secret, req.header('CubePath-Timestamp') ?? '', req.body,
+      req.header('CubePath-Signature') ?? '');
+  } catch {
+    return res.sendStatus(401);
+  }
+  // Deliveries are at least once: deduplicate by the CubePath-Event-Id header.
+  res.sendStatus(204);
+});
+```
+
 #### Presigned URLs
 
 This SDK talks to the CubePath API, not to S3. To share one object for a while, sign a

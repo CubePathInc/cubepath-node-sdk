@@ -70,4 +70,5 @@ export class CubePath {
 }
 
 export { CubePathError } from './errors';
+export { verifyStorageEventSignature, StorageEventSignatureError } from './webhooks';
 export * from './types';
