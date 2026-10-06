@@ -7,7 +7,7 @@ const DEFAULT_RETRY_WAIT_MIN = 1000;
 const DEFAULT_RETRY_WAIT_MAX = 30000;
 const DEFAULT_RATE_LIMIT = 10;
 const DEFAULT_TIMEOUT = 30000;
-const SDK_VERSION = '0.7.0';
+const SDK_VERSION = '0.8.0';
 
 export class HttpClient {
   private readonly apiKey: string;
