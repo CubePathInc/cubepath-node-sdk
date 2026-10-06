@@ -723,6 +723,20 @@ await client.objectStorage.listReplicationGrants(destBucketUuid);
 await client.objectStorage.deleteReplicationGrant(grant.uuid);
 ```
 
+#### Encryption at rest
+
+Every bucket stores its objects encrypted with AES-256 (SSE-S3), at no charge; there is nothing
+to configure and it cannot be turned off. `encryption` on a bucket is `null` until the bucket
+default is applied, then `algorithm` is `AES256` and `scope` is `all_objects`, or `new_objects`
+while objects uploaded before the default may still be stored unencrypted (they are re-encrypted
+in the background). SSE-KMS is not available; SSE-C (your own key in each request) works through
+any S3 client.
+
+```typescript
+const detail = await client.objectStorage.getBucket(bucket.uuid);
+console.log(detail.encryption?.scope ?? 'not applied yet'); // 'all_objects' or 'new_objects'
+```
+
 Buckets are private. To serve one publicly, add it as an origin of a CDN zone:
 
 ```typescript
@@ -757,6 +771,14 @@ const rule = await client.objectStorage.createEventRule(bucket.uuid, {
 await client.objectStorage.testEventDestination(destination.uuid); // sends a cubepath.ping
 const page = await client.objectStorage.listEventDeliveries(destination.uuid, { status: 'failed', limit: 20 });
 // Older page: { before: page.next_before } while next_before is not null (unix milliseconds).
+
+// Manage them: pause a rule, rotate the secret, delete (a destination only once it has no rules)
+const rules = await client.objectStorage.listEventRules(bucket.uuid);
+await client.objectStorage.updateEventRule(bucket.uuid, rule.uuid, { enabled: false });
+const { signing_secret: newSecret } = await client.objectStorage.rotateEventDestinationSecret(destination.uuid);
+await client.objectStorage.deleteEventRule(bucket.uuid, rule.uuid);
+const destinations = await client.objectStorage.listEventDestinations();
+await client.objectStorage.deleteEventDestination(destination.uuid);
 ```
 
 Verify every webhook delivery before trusting it, against the raw body. `CubePath-Signature`
