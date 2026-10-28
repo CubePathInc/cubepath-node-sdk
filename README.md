@@ -585,6 +585,12 @@ const key = await client.objectStorage.createKey({
 });
 console.log(key.access_key_id, key.secret_access_key, key.endpoint, key.region);
 
+// Edit a key in place (same access key id and secret): only the fields you set change.
+// all_buckets: true means every bucket of the project in the tier, including future ones.
+await client.objectStorage.updateKey(key.uuid, { name: 'backups-ro', permission: 'read_only', bypass_governance: false });
+await client.objectStorage.updateKey(key.uuid, { bucket_uuids: [bucket.uuid] });
+await client.objectStorage.updateKey(key.uuid, { all_buckets: true });
+
 // List buckets and keys, month usage and cost
 const buckets = await client.objectStorage.listBuckets({ project_id: 12 });
 const keys = await client.objectStorage.listKeys();

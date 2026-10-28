@@ -15,6 +15,7 @@ import {
   UpdateObjectStorageBucketRequest,
   CreateObjectStorageAccessKeyRequest,
   CreateObjectStorageAccessKeyResponse,
+  UpdateObjectStorageAccessKeyRequest,
   ObjectStorageLifecycle,
   ObjectStorageLifecycleChange,
   ObjectStorageLifecycleRule,
@@ -275,6 +276,25 @@ export class ObjectStorageService {
   /** The secret is only returned by this call. The key works once its status is "active". */
   async createKey(req: CreateObjectStorageAccessKeyRequest): Promise<CreateObjectStorageAccessKeyResponse> {
     return this.http.post<CreateObjectStorageAccessKeyResponse>('/object-storage/keys', req);
+  }
+
+  /**
+   * Edits a key in place: the access key id and the secret do not change. Only the fields set are
+   * sent. all_buckets sends bucket_uuids null (every bucket of the project in the tier); it cannot
+   * be combined with bucket_uuids, and an empty bucket_uuids is rejected. The new permissions are
+   * enforced a few seconds later. The expiration, tier and project are fixed at creation.
+   */
+  async updateKey(uuid: string, req: UpdateObjectStorageAccessKeyRequest): Promise<void> {
+    const { all_buckets, ...rest } = req;
+    const body: Record<string, unknown> = { ...rest };
+    if (all_buckets && req.bucket_uuids !== undefined) {
+      throw new Error('all_buckets and bucket_uuids are mutually exclusive');
+    }
+    if (req.bucket_uuids !== undefined && req.bucket_uuids.length === 0) {
+      throw new Error('bucket_uuids cannot be empty: use all_buckets for every bucket');
+    }
+    if (all_buckets) body.bucket_uuids = null;
+    await this.http.patch(`/object-storage/keys/${uuid}`, body);
   }
 
   async deleteKey(uuid: string): Promise<void> {

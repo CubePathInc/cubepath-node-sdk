@@ -1783,8 +1783,21 @@ export interface CreateObjectStorageAccessKeyRequest {
   expires_at?: string;
   /**
    * read_write keys only: the key may delete versions under governance retention (sending
-   * x-amz-bypass-governance-retention: true). Cannot be changed later.
+   * x-amz-bypass-governance-retention: true). Can be changed later with updateKey.
    */
+  bypass_governance?: boolean;
+}
+
+export interface UpdateObjectStorageAccessKeyRequest {
+  /** 1 to 100 characters. */
+  name?: string;
+  /** read_write or read_only */
+  permission?: 'read_write' | 'read_only';
+  /** Limit the key to these buckets (1 to 20, live buckets of the key's project and tier). Not with all_buckets. */
+  bucket_uuids?: string[];
+  /** Every bucket of the key's project in its tier, including future ones. Not with bucket_uuids. */
+  all_buckets?: boolean;
+  /** read_write keys only. To turn a bypass key into read_only send false here too. */
   bypass_governance?: boolean;
 }
 

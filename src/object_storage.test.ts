@@ -123,6 +123,32 @@ describe('ObjectStorageService', () => {
     expect(calls[0].body).toEqual({ name: 'backups', tier: 'infrequent_access', permission: 'read_only', bucket_uuids: ['b1'] });
   });
 
+  it('updates an access key sending only the fields set', async () => {
+    const calls = mockFetch({ detail: 'Access key updated.' });
+    const os = client().objectStorage;
+    await os.updateKey('k1', { name: 'renamed' });
+    await os.updateKey('k1', { permission: 'read_only', bypass_governance: false });
+    await os.updateKey('k1', { bucket_uuids: ['b1', 'b2'] });
+    await os.updateKey('k1', { all_buckets: true });
+    await os.updateKey('k1', { permission: 'read_write', bypass_governance: true });
+    expect(calls.every((c) => c.method === 'PATCH' && c.url === 'https://api.test/object-storage/keys/k1')).toBe(true);
+    expect(calls.map((c) => c.body)).toEqual([
+      { name: 'renamed' },
+      { permission: 'read_only', bypass_governance: false },
+      { bucket_uuids: ['b1', 'b2'] },
+      { bucket_uuids: null },
+      { permission: 'read_write', bypass_governance: true },
+    ]);
+  });
+
+  it('rejects an invalid key update before any request', async () => {
+    const calls = mockFetch();
+    const os = client().objectStorage;
+    await expect(os.updateKey('k1', { all_buckets: true, bucket_uuids: ['b1'] })).rejects.toThrow('mutually exclusive');
+    await expect(os.updateKey('k1', { bucket_uuids: [] })).rejects.toThrow('cannot be empty');
+    expect(calls).toHaveLength(0);
+  });
+
   it('lists replications with filters', async () => {
     const calls = mockFetch([]);
     const os = client().objectStorage;
