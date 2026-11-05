@@ -17,7 +17,8 @@ export class StorageEventSignatureError extends Error {
  * each the HMAC-SHA256 of `timestamp + "." + body`. Deliveries whose timestamp is further than
  * `toleranceSeconds` (default 300) from now are rejected; pass 0 to skip that check.
  *
- * Throws StorageEventSignatureError when the delivery is not valid.
+ * Throws StorageEventSignatureError when the delivery is not valid, and when `secret` is empty,
+ * so a secret that was never configured verifies nothing.
  */
 export function verifyStorageEventSignature(
   secret: string,
@@ -27,8 +28,9 @@ export function verifyStorageEventSignature(
   toleranceSeconds = 300,
   now: number = Date.now() / 1000,
 ): void {
+  if (!secret) throw new StorageEventSignatureError('The signing secret is empty');
   const ts = timestamp.trim();
-  if (!/^\d+$/.test(ts)) throw new StorageEventSignatureError('Invalid timestamp');
+  if (!/^\d{1,12}$/.test(ts)) throw new StorageEventSignatureError('Invalid timestamp');
   if (toleranceSeconds > 0 && Math.abs(now - Number(ts)) > toleranceSeconds) {
     throw new StorageEventSignatureError('Timestamp outside the tolerance');
   }

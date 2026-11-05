@@ -1,3 +1,5 @@
+import { createHmac } from 'crypto';
+
 import { CubePath, StorageEventSignatureError, verifyStorageEventSignature } from './index';
 
 type Call = { url: string; method: string; body?: unknown };
@@ -81,6 +83,17 @@ describe('Object Storage event notifications', () => {
     ['short value', SECRET, TS, BODY, 'v1=abcd', NOW],
   ])('rejects %s', (_name, secret, ts, body, header, now) => {
     expect(() => verifyStorageEventSignature(secret, ts, body, header, 300, now)).toThrow(StorageEventSignatureError);
+  });
+
+  const signed = (secret: string, ts: string) =>
+    `v1=${createHmac('sha256', secret).update(`${ts}.${BODY}`).digest('hex')}`;
+
+  it('rejects an empty secret even when the signature matches it', () => {
+    expect(() => verifyStorageEventSignature('', TS, BODY, signed('', TS), 300, NOW)).toThrow(StorageEventSignatureError);
+  });
+
+  it.each([['9'.repeat(20)], ['-1'], ['+1790000000']])('rejects the malformed timestamp %s', (ts) => {
+    expect(() => verifyStorageEventSignature(SECRET, ts, BODY, signed(SECRET, ts), 0, NOW)).toThrow(StorageEventSignatureError);
   });
 
   it('skips the timestamp check with tolerance 0 and uses the clock by default', () => {
