@@ -32,7 +32,7 @@ export class BaremetalService {
   async get(baremetalId: string): Promise<Baremetal> {
     const projects = await this.list();
     for (const project of projects) {
-      const bm = project.baremetals?.find((b) => b.id === baremetalId);
+      const bm = project.baremetals?.find((b) => String(b.id) === String(baremetalId));
       if (bm) return bm;
     }
     throw new Error(`Baremetal ${baremetalId} not found`);
