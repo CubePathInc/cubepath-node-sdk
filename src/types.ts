@@ -307,7 +307,10 @@ export interface ISOListResponse {
 // ── Baremetal ───────────────────────────────────────────────────────────────
 
 export interface Baremetal {
-  id: string;
+  /** The server number. Older API versions send it as a string, so both are typed. */
+  id: string | number;
+  /** The server uuid, added by the API after the uuid change; absent before. */
+  uuid?: string;
   hostname: string;
   label?: string;
   project_id: string;
