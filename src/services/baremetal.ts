@@ -58,6 +58,9 @@ export class BaremetalService {
 
   /** Temperatures and fan speeds from the last BMC poll, served through GraphQL. */
   async bmcSensors(baremetalId: BaremetalRef): Promise<BMCSensors> {
+    // GraphQL baremetal(id:) may not take the uuid yet: resolve it to the server number first.
+    let gqlId = baremetalRef(baremetalId);
+    if (!/^\d+$/.test(gqlId)) gqlId = String((await this.get(gqlId)).id);
     type Reading = { name: string; value: number; unit: string };
     const data = await this.http.graphql<{
       baremetal: {
@@ -71,9 +74,9 @@ export class BaremetalService {
       } | null;
     }>(
       'query($id: ID!) { baremetal(id: $id) { sensors { ipmiAvailable powerOn lastSeen temperatures { name value unit } fans { name value unit } } } }',
-      { id: baremetalRef(baremetalId) },
+      { id: gqlId },
     );
-    if (!data?.baremetal) throw new CubePathError(404, 'Not Found', `Baremetal ${baremetalRef(baremetalId)} not found`);
+    if (!data?.baremetal) throw new CubePathError(404, 'Not Found', `Baremetal ${gqlId} not found`);
     const s = data.baremetal.sensors;
     return {
       node: '',

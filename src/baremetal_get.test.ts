@@ -99,13 +99,27 @@ describe('baremetal reference validation', () => {
     expect(calls).toEqual([]);
   });
 
-  it('sends the reference to GraphQL as given', async () => {
+  it('sends a number to GraphQL as given', async () => {
     const bodies: string[] = [];
     global.fetch = jest.fn(async (_u: unknown, init?: RequestInit) => {
       bodies.push(String(init?.body));
       return new Response(JSON.stringify({ data: { baremetal: { sensors: { temperatures: [], fans: [] } } } }), { status: 200 });
     }) as unknown as typeof fetch;
+    await client().baremetal.bmcSensors(7);
+    expect(bodies).toHaveLength(1);
+    expect(JSON.parse(bodies[0]).variables).toEqual({ id: '7' });
+  });
+
+  it('resolves a uuid to the server number before asking GraphQL', async () => {
+    const bodies: string[] = [];
+    global.fetch = jest.fn(async (u: unknown, init?: RequestInit) => {
+      if (String(u).includes('/projects/')) {
+        return new Response(JSON.stringify([{ baremetals: [{ id: 42, uuid: UUID, hostname: 'x' }] }]), { status: 200 });
+      }
+      bodies.push(String(init?.body));
+      return new Response(JSON.stringify({ data: { baremetal: { sensors: { temperatures: [], fans: [] } } } }), { status: 200 });
+    }) as unknown as typeof fetch;
     await client().baremetal.bmcSensors(UUID.toUpperCase());
-    expect(JSON.parse(bodies[0]).variables).toEqual({ id: UUID });
+    expect(JSON.parse(bodies[0]).variables).toEqual({ id: '42' });
   });
 });

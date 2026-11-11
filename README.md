@@ -200,7 +200,8 @@ await client.baremetal.power('baremetal-id', 'restart_metal');
 const rescue = await client.baremetal.rescue('baremetal-id');
 console.log(rescue.username, rescue.password);
 
-// BMC sensors (temperatures in CELSIUS, fans in RPM; last_seen is the last BMC poll)
+// BMC sensors (temperatures in CELSIUS, fans in RPM; last_seen is the last BMC poll).
+// A uuid is resolved to the server number first, since GraphQL may not take the uuid yet
 const sensors = await client.baremetal.bmcSensors('baremetal-id');
 
 // Reinstall progress (the server status is 'deploying' while it runs) and cancel
