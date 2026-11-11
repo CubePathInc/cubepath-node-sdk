@@ -180,6 +180,8 @@ await client.vps.isos.unmount('vps-id');
 
 ### Baremetal
 
+A server reference (`baremetal-id` below) is the server number or its uuid, as text or number. The SDK rejects anything else before sending a request. `id` stays the number; `uuid` is added on listed servers once the API sends it. Fields that echo a server (route next hop, BGP peer target, load balancer target, alert target) stay the server number.
+
 ```typescript
 // Deploy a bare metal server
 const task = await client.baremetal.deploy('project-id', {
