@@ -1,4 +1,5 @@
 import { HttpClient } from '../client';
+import { baremetalTarget } from '../baremetal_ref';
 import {
   CloudAlert,
   CloudAlertSummary,
@@ -58,11 +59,13 @@ export class CloudAlertsService {
   }
 
   async create(req: CreateCloudAlertRequest): Promise<CloudAlert> {
-    return this.http.post<CloudAlert>('/triggers/', req);
+    const body = { ...req, target_id: baremetalTarget(req.target_type, req.target_id) };
+    return this.http.post<CloudAlert>('/triggers/', body);
   }
 
   async update(alertId: string, req: UpdateCloudAlertRequest): Promise<CloudAlert> {
-    return this.http.put<CloudAlert>(`/triggers/${alertId}`, req);
+    const body = req.target_id === undefined ? req : { ...req, target_id: baremetalTarget(req.target_type, req.target_id) };
+    return this.http.put<CloudAlert>(`/triggers/${alertId}`, body);
   }
 
   async delete(alertId: string): Promise<void> {

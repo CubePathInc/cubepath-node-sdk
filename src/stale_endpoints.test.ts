@@ -77,19 +77,19 @@ describe('stale endpoint fixes', () => {
     const calls = mockFetch({
       data: { baremetal: { sensors: { ipmiAvailable: true, powerOn: true, lastSeen: 100, temperatures: [{ name: 'CPU', value: 41, unit: 'CELSIUS' }], fans: [] } } },
     });
-    const s = await client().baremetal.bmcSensors('9');
-    expect(calls[0].body.variables).toEqual({ id: '9' });
+    const s = await client().baremetal.bmcSensors('0b9f6a3e-1c2d-4e5f-8a7b-9c0d1e2f3a4b');
+    expect(calls[0].body.variables).toEqual({ id: '0b9f6a3e-1c2d-4e5f-8a7b-9c0d1e2f3a4b' });
     expect(s.ipmi_available).toBe(true);
     expect(s.last_seen).toBe(100);
     expect(s.sensors.temperatures[0].unit).toBe('CELSIUS');
   });
 
   it('derives reinstall status from the server status and cancels with DELETE', async () => {
-    const calls = mockFetch([{ project: {}, baremetals: [{ id: '9', status: 'deploying' }] }], {});
+    const calls = mockFetch([{ project: {}, baremetals: [{ id: '0b9f6a3e-1c2d-4e5f-8a7b-9c0d1e2f3a4b', uuid: '0b9f6a3e-1c2d-4e5f-8a7b-9c0d1e2f3a4b', status: 'deploying' }] }], {});
     const bm = client().baremetal;
-    const st = await bm.reinstallStatus('9');
-    await bm.cancelReinstall('9');
+    const st = await bm.reinstallStatus('0b9f6a3e-1c2d-4e5f-8a7b-9c0d1e2f3a4b');
+    await bm.cancelReinstall('0b9f6a3e-1c2d-4e5f-8a7b-9c0d1e2f3a4b');
     expect(st.is_reinstalling).toBe(true);
-    expect(calls[1]).toMatchObject({ url: 'https://api.test/baremetal/9/reinstall', method: 'DELETE' });
+    expect(calls[1]).toMatchObject({ url: 'https://api.test/baremetal/0b9f6a3e-1c2d-4e5f-8a7b-9c0d1e2f3a4b/reinstall', method: 'DELETE' });
   });
 });

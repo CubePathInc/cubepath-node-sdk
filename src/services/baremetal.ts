@@ -58,9 +58,7 @@ export class BaremetalService {
 
   /** Temperatures and fan speeds from the last BMC poll, served through GraphQL. */
   async bmcSensors(baremetalId: BaremetalRef): Promise<BMCSensors> {
-    // GraphQL baremetal(id:) may not take the uuid yet: resolve it to the server number first.
-    let gqlId = baremetalRef(baremetalId);
-    if (!/^\d+$/.test(gqlId)) gqlId = String((await this.get(gqlId)).id);
+    const gqlId = baremetalRef(baremetalId);
     type Reading = { name: string; value: number; unit: string };
     const data = await this.http.graphql<{
       baremetal: {

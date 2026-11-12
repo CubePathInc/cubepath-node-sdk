@@ -307,10 +307,10 @@ export interface ISOListResponse {
 // ── Baremetal ───────────────────────────────────────────────────────────────
 
 export interface Baremetal {
-  /** The server number. Older API versions send it as a string, so both are typed. */
-  id: string | number;
-  /** The server uuid, added by the API after the uuid change; absent before. */
-  uuid?: string;
+  /** The server uuid, the reference every baremetal method takes. */
+  id: string;
+  /** The same uuid as `id`. */
+  uuid: string;
   hostname: string;
   label?: string;
   project_id: string;
@@ -525,7 +525,7 @@ export interface BGPPeer {
   id: string;
   network_id: number;
   peer_type: BGPPeerType;
-  /** A private IP of the network, or the id of a VPS / baremetal attached to it. */
+  /** A private IP of the network, the id of a VPS or the uuid of a baremetal attached to it. */
   peer_target: string;
   remote_asn: number;
   max_prefix: number;
@@ -2711,7 +2711,7 @@ export interface CloudAlertSummary {
   name: string;
   description: string | null;
   target_type: CloudAlertTargetType;
-  /** VPS or baremetal id, or availability group uuid. */
+  /** VPS id, baremetal uuid or availability group uuid. */
   target_id: string;
   metric_type: CloudAlertMetric;
   operator: CloudAlertOperator;

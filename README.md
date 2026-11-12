@@ -180,7 +180,9 @@ await client.vps.isos.unmount('vps-id');
 
 ### Baremetal
 
-A server reference (`baremetal-id` below) is the server number or its uuid, as text or number. The SDK rejects anything else before sending a request. `id` stays the number; `uuid` is added on listed servers once the API sends it. Fields that echo a server (route next hop, BGP peer target, load balancer target, alert target) stay the server number.
+A server reference (`baremetal-id` below) is the server uuid: `id` of a listed server is the uuid and `uuid` carries the same value. The fields that name a server in other objects (route next hop, BGP peer target, load balancer target, alert target, floating IP assignment) take the uuid too when their type is `baremetal`. The SDK rejects anything else, a server number included, with `baremetal reference must be a uuid` before sending a request.
+
+**Breaking change (unreleased):** the API no longer knows server numbers. `Baremetal.id` is the uuid (it was the number), and a number passed where a baremetal is expected throws. Use the uuid shown in the dashboard or returned in `id`.
 
 ```typescript
 // Deploy a bare metal server
@@ -200,8 +202,7 @@ await client.baremetal.power('baremetal-id', 'restart_metal');
 const rescue = await client.baremetal.rescue('baremetal-id');
 console.log(rescue.username, rescue.password);
 
-// BMC sensors (temperatures in CELSIUS, fans in RPM; last_seen is the last BMC poll).
-// A uuid is resolved to the server number first, since GraphQL may not take the uuid yet
+// BMC sensors (temperatures in CELSIUS, fans in RPM; last_seen is the last BMC poll)
 const sensors = await client.baremetal.bmcSensors('baremetal-id');
 
 // Reinstall progress (the server status is 'deploying' while it runs) and cancel

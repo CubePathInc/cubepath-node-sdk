@@ -336,27 +336,28 @@ describe('gaps in existing products', () => {
   });
 
   it('covers baremetal actions', async () => {
+    const BM_UUID = '0b9f6a3e-1c2d-4e5f-8a7b-9c0d1e2f3a4b';
     const calls = mockFetch({});
     const bm = client().baremetal;
     await bm.listModels();
-    await bm.listOS('9');
-    await bm.kvm('9');
-    await bm.setProtection('9', false);
-    await bm.moveToProject('9', 12);
-    await bm.addSSHKeys('9', [3]);
-    await bm.removeSSHKey('9', 3);
-    await bm.attachNetwork('9', 73);
-    await bm.detachNetwork('9');
+    await bm.listOS(BM_UUID);
+    await bm.kvm(BM_UUID);
+    await bm.setProtection(BM_UUID, false);
+    await bm.moveToProject(BM_UUID, 12);
+    await bm.addSSHKeys(BM_UUID, [3]);
+    await bm.removeSSHKey(BM_UUID, 3);
+    await bm.attachNetwork(BM_UUID, 73);
+    await bm.detachNetwork(BM_UUID);
     expect(routes(calls)).toEqual([
       'GET /baremetal/models',
-      'GET /baremetal/os/9',
-      'GET /baremetal/9/kvm',
-      'POST /baremetal/9/protection',
-      'POST /baremetal/9/move-project',
-      'POST /baremetal/9/ssh-keys',
-      'DELETE /baremetal/9/ssh-keys/3',
-      'POST /baremetal/9/network',
-      'DELETE /baremetal/9/network',
+      `GET /baremetal/os/${BM_UUID}`,
+      `GET /baremetal/${BM_UUID}/kvm`,
+      `POST /baremetal/${BM_UUID}/protection`,
+      `POST /baremetal/${BM_UUID}/move-project`,
+      `POST /baremetal/${BM_UUID}/ssh-keys`,
+      `DELETE /baremetal/${BM_UUID}/ssh-keys/3`,
+      `POST /baremetal/${BM_UUID}/network`,
+      `DELETE /baremetal/${BM_UUID}/network`,
     ]);
     expect(calls[5].body).toEqual([3]);
   });

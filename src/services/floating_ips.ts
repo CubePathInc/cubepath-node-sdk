@@ -1,4 +1,5 @@
 import { HttpClient } from '../client';
+import { baremetalTarget } from '../baremetal_ref';
 import { FloatingIP, FloatingIPsResponse } from '../types';
 
 export class FloatingIPsService {
@@ -19,8 +20,10 @@ export class FloatingIPsService {
     await this.http.post(`/floating_ips/release/${address}`);
   }
 
+  /** Assign an owned IP to a server: the VPS id, or the uuid of a baremetal server. */
   async assign(resourceType: string, resourceId: string, address: string): Promise<void> {
-    await this.http.post(`/floating_ips/assign/${resourceType}/${resourceId}`, undefined, { address });
+    const ref = baremetalTarget(resourceType, resourceId);
+    await this.http.post(`/floating_ips/assign/${resourceType}/${ref}`, undefined, { address });
   }
 
   async unassign(address: string): Promise<void> {

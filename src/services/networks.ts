@@ -1,4 +1,5 @@
 import { HttpClient } from '../client';
+import { baremetalTarget } from '../baremetal_ref';
 import {
   Network,
   CreateNetworkRequest,
@@ -37,7 +38,8 @@ export class NetworksService {
   }
 
   async createRoute(networkId: number, req: CreateNetworkRouteRequest): Promise<NetworkRoute> {
-    return this.http.post<NetworkRoute>(`/networks/${networkId}/routes`, req);
+    const body = { ...req, next_hop_target: baremetalTarget(req.next_hop_type, req.next_hop_target) };
+    return this.http.post<NetworkRoute>(`/networks/${networkId}/routes`, body);
   }
 
   async deleteRoute(networkId: number, routeId: string): Promise<void> {
@@ -55,7 +57,8 @@ export class NetworksService {
   }
 
   async createBGPPeer(networkId: number | string, req: CreateBGPPeerRequest): Promise<CreateBGPPeerResponse> {
-    return this.http.post<CreateBGPPeerResponse>(`/networks/${networkId}/bgp-peers`, req);
+    const body = { ...req, peer_target: baremetalTarget(req.peer_type, req.peer_target) };
+    return this.http.post<CreateBGPPeerResponse>(`/networks/${networkId}/bgp-peers`, body);
   }
 
   async updateBGPPeer(networkId: number | string, peerId: string, req: UpdateBGPPeerRequest): Promise<DetailResponse> {

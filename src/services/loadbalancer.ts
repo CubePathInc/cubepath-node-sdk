@@ -1,4 +1,5 @@
 import { HttpClient } from '../client';
+import { baremetalTarget } from '../baremetal_ref';
 import { CubePathError } from '../errors';
 import {
   LoadBalancer,
@@ -78,13 +79,15 @@ export class LoadBalancerService {
   // Target operations
 
   async addTarget(lbUUID: string, listenerUUID: string, req: AddTargetRequest): Promise<LBTarget> {
-    return this.http.post<LBTarget>(`/loadbalancer/${lbUUID}/listeners/${listenerUUID}/targets`, req);
+    const body = { ...req, target_uuid: baremetalTarget(req.target_type, req.target_uuid) };
+    return this.http.post<LBTarget>(`/loadbalancer/${lbUUID}/listeners/${listenerUUID}/targets`, body);
   }
 
   /** Add several targets to a listener in one call. */
   async addTargets(lbUUID: string, listenerUUID: string, targets: BatchTargetRequest[]): Promise<AddTargetsResponse> {
+    const checked = targets.map((t) => ({ ...t, target_uuid: baremetalTarget(t.target_type, t.target_uuid) }));
     return this.http.post<AddTargetsResponse>(`/loadbalancer/${lbUUID}/listeners/${listenerUUID}/targets/batch`, {
-      targets,
+      targets: checked,
     });
   }
 
