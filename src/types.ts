@@ -938,7 +938,7 @@ export interface CDNOrigin {
   /** Seconds. */
   health_check_interval?: number;
   health_check_threshold?: number;
-  /** An origin with health checks disabled is "unknown" (not checked). */
+  /** "unknown" also when no origin of the zone has its check on (not checked). */
   health_status?: 'healthy' | 'unhealthy' | 'unknown' | string;
   /** Why the origin is down. */
   health_detail?: string | null;
