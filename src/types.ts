@@ -930,7 +930,20 @@ export interface CDNOrigin {
   is_backup: boolean;
   health_check_enabled: boolean;
   health_check_path?: string;
-  health_status?: string;
+  /** "tcp" or "http". The path, method and expected status only apply to "http". */
+  health_check_type?: 'tcp' | 'http';
+  health_check_method?: 'GET' | 'HEAD';
+  /** Statuses or classes separated by spaces, such as "200" or "2xx 3xx". */
+  health_check_expected_status?: string;
+  /** Seconds. */
+  health_check_interval?: number;
+  health_check_threshold?: number;
+  /** An origin with health checks disabled is "unknown" (not checked). */
+  health_status?: 'healthy' | 'unhealthy' | 'unknown' | string;
+  /** Why the origin is down. */
+  health_detail?: string | null;
+  /** ISO 8601 UTC time of the last health status change. */
+  health_changed_at?: string | null;
   verify_ssl: boolean;
   host_header?: string;
   base_path?: string;
@@ -1082,7 +1095,18 @@ export interface CreateCDNOriginRequest {
   priority?: number;
   is_backup?: boolean;
   health_check_enabled?: boolean;
+  /** Only used when health_check_type is "http" (the API defaults it to "/"). */
   health_check_path?: string;
+  /** "tcp" (default) or "http". Omitted health check fields keep the API defaults. */
+  health_check_type?: 'tcp' | 'http';
+  /** "GET" (default) or "HEAD". */
+  health_check_method?: 'GET' | 'HEAD';
+  /** 1 to 8 statuses or classes separated by spaces, such as "200" or "2xx 3xx" (default). */
+  health_check_expected_status?: string;
+  /** Seconds, 5 to 300 (default 10). */
+  health_check_interval?: number;
+  /** Checks that flip the status, 1 to 10 (default 3). */
+  health_check_threshold?: number;
   verify_ssl?: boolean;
   host_header?: string;
   base_path?: string;
@@ -1100,7 +1124,18 @@ export interface UpdateCDNOriginRequest {
   host_header?: string;
   base_path?: string;
   health_check_enabled?: boolean;
+  /** Only used when health_check_type is "http" (the API defaults it to "/"). */
   health_check_path?: string;
+  /** "tcp" (default) or "http". Omitted health check fields keep the API defaults. */
+  health_check_type?: 'tcp' | 'http';
+  /** "GET" (default) or "HEAD". */
+  health_check_method?: 'GET' | 'HEAD';
+  /** 1 to 8 statuses or classes separated by spaces, such as "200" or "2xx 3xx" (default). */
+  health_check_expected_status?: string;
+  /** Seconds, 5 to 300 (default 10). */
+  health_check_interval?: number;
+  /** Checks that flip the status, 1 to 10 (default 3). */
+  health_check_threshold?: number;
   verify_ssl?: boolean;
   enabled?: boolean;
 }

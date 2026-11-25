@@ -414,6 +414,20 @@ await client.cdn.createOrigin(zone.uuid, {
   enabled: true,
 });
 
+// HTTP health check: GET /healthz every 15 s, down after 2 failures unless it answers 200 or 204.
+// Omitted fields keep the API defaults (tcp, GET, "2xx 3xx", 10 s, 3). health_status "unknown"
+// means "not checked"; origin.health_detail and origin.health_changed_at say why and since when.
+await client.cdn.createOrigin(zone.uuid, {
+  name: 'api',
+  address: 'api.example.com',
+  health_check_enabled: true,
+  health_check_type: 'http',
+  health_check_path: '/healthz',
+  health_check_expected_status: '200 204',
+  health_check_interval: 15,
+  health_check_threshold: 2,
+});
+
 // Create an edge rule
 await client.cdn.createRule(zone.uuid, {
   name: 'cache-static',
