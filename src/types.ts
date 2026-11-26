@@ -108,6 +108,10 @@ export interface VPSPlan {
   storage: number;
   bandwidth: number;
   price_per_hour: number;
+  /** Hourly price with the active discount; null when there is no discount. price_per_hour stays the list price. */
+  effective_price_per_hour?: number | null;
+  discount_percent?: number | null;
+  discount_label?: string | null;
 }
 
 export interface VPSTemplate {
@@ -182,6 +186,10 @@ export interface VPSPlanOption {
   storage: number;
   bandwidth: number;
   price_per_hour: number;
+  /** Hourly price with the active discount; null when there is no discount. price_per_hour stays the list price. */
+  effective_price_per_hour?: number | null;
+  discount_percent?: number | null;
+  discount_label?: string | null;
   /** 2 available, 1 out of stock. */
   status?: number;
 }
@@ -1186,7 +1194,12 @@ export interface KubernetesPlan {
   cpu: number;
   ram: number;
   storage: number;
+  location_id?: number | null;
   price_per_hour: number;
+  /** Hourly price with the active discount; null when there is no discount. price_per_hour stays the list price. */
+  effective_price_per_hour?: number | null;
+  discount_percent?: number | null;
+  discount_label?: string | null;
 }
 
 export interface KubernetesCluster {

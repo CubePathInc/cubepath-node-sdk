@@ -466,3 +466,37 @@ describe('gaps in existing products', () => {
     expect(calls[2].body.targets).toHaveLength(2);
   });
 });
+
+describe('plan discount fields', () => {
+  it('VPS plans keep price_per_hour as list price and expose the discount fields', async () => {
+    const calls = mockFetch({
+      locations: [
+        {
+          location_name: 'us-va-1',
+          description: 'Ashburn',
+          clusters: [
+            {
+              cluster_name: 'General Purpose',
+              type: 'shared',
+              plans: [
+                {
+                  plan_name: 'gp.nano',
+                  price_per_hour: '0.07639',
+                  effective_price_per_hour: 0.03819,
+                  discount_percent: 50,
+                  discount_label: 'Launch',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const res = await client().vps.plans();
+    expect(routes(calls)).toEqual(['GET /vps/plans']);
+    const p = res.locations[0].clusters[0].plans[0];
+    expect(p.effective_price_per_hour).toBe(0.03819);
+    expect(p.discount_percent).toBe(50);
+    expect(p.discount_label).toBe('Launch');
+  });
+});
